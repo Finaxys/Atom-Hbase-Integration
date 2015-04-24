@@ -1,84 +1,120 @@
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import v13.Day;
 import v13.MonothreadedSimulation;
 import v13.Simulation;
 import v13.agents.ZIT;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 enum Output
 {
-    SystemOut,
     HBase,
-    All
+    Other,
+    Both
 };
 
 public class AtomHBaseIntegration
 {
+    private static final Logger LOGGER = Logger.getLogger( AtomHBaseIntegration.class.getName() );
+
     // Static infos
     static public final String[] DOW2 = { "MMM", "AXP"};
     static public final String[] DOW30 = { "MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "DIS", "DD", "XOM", "GE", "GS", "HD", "IBM", "INTC", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UTX", "UNH", "VZ", "V", "WMT"};
-    private static final Logger LOGGER = Logger.getLogger( AtomHBaseIntegration.class.getName() );
+    static private String[] orderBooks;
+    static private String[] agents;
 
     // Main config for Atom
     public static void main(String args[]) throws IOException {
         // Loading properties
         try {
-            FileInputStream propFile = new FileInputStream("properties.txt");
-            Properties p = new Properties(System.getProperties());
-            p.load(propFile);
-            System.setProperties(p);
-            // display new properties
-            System.getProperties().list(System.out);
+            getConfiguration();
         }
         catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Could not load properties", e);
         }
 
-
-        // Pre config arguments
-        Output output;
-        String tableName = "atom";
-        String cfName = "cf";
-
-        // Config Arguments
-        if (args[0].equals("1"))
-            output = Output.HBase;
-        else if (args[0].equals("2"))
-            output = Output.SystemOut;
-        else
-            output = Output.All;
-
-        if (args.length > 1)
-        {
-            tableName = args[1];
-            if (args.length > 2)
-                cfName = args[2];
-        }
-
+        String tableName = System.getProperty("hbase.table", "trace");
+        String cfName = System.getProperty("hbase.cf", "cf");
+        boolean outHbase = Boolean.parseBoolean(System.getProperty("simul.output.hbase", "true"));
+        String outFile = System.getProperty("simul.output.file", "");
+        boolean outSystem = Boolean.parseBoolean(System.getProperty("simul.output.standard", "true"));
+        
         // How long
         long startTime = System.currentTimeMillis();
 
         // Create simulator with custom logger
         Simulation sim = new MonothreadedSimulation();
-        HBaseLogger logger = new HBaseLogger(output, tableName, cfName);
+        HBaseLogger logger = null;
+
+        try {
+            if (outHbase)
+            {
+                if (outSystem)
+                    logger = new HBaseLogger(Output.Both, System.out, tableName, cfName);
+                else if (!outFile.equals(""))
+                    logger = new HBaseLogger(Output.Both, outFile, tableName, cfName);
+                else
+                    logger = new HBaseLogger(tableName, cfName);
+            }
+            else if (outSystem)
+                logger = new HBaseLogger(Output.Other, System.out, tableName, cfName);
+            else if (!outFile.equals(""))
+                logger = new HBaseLogger(Output.Other, outFile, tableName, cfName);
+            else
+            {
+                LOGGER.log(Level.SEVERE, "Config file must have at least one output");
+                return;
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Could not init logger", e);
+            return;
+        }
+
         sim.setLogger(logger);
 
-        // Create Agents and Order book to MarketMaker with static infos
-        for (int i = 1; i < 10; ++i)
-            sim.addNewAgent(new ZIT("ZIT" + i,0,10000,20000,10,50));
-        for (String ob : DOW30)
-            sim.addNewMarketMaker(ob);
+        // Create Agents and Order book to MarketMaker depending properties
+        boolean marketmaker = System.getProperty("atom.marketmaker", "true").equals("true");
+        for (String agent : agents)
+            sim.addNewAgent(new ZIT(agent, 0, 10000, 20000, 10, 50));
+        for (String ob : orderBooks) {
+            if (marketmaker)
+                sim.addNewMarketMaker(ob);
+            else
+                sim.addNewOrderBook(ob);
+        }
 
-        sim.run(Day.createEuroNEXT(1, 500, 0), 1);
+        sim.run(Day.createEuroNEXT(Integer.parseInt(System.getProperty("simul.tick.opening", "0")),
+                Integer.parseInt(System.getProperty("simul.tick.continuous", "10")),
+                Integer.parseInt(System.getProperty("simul.tick.closing", "0"))),
+                Integer.parseInt(System.getProperty("simul.days", "1")));
 
         sim.market.close();
-        logger.close();
+
+        try {
+            logger.close();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Could not close logger", e);
+            return;
+        }
 
 
         long estimatedTime = System.currentTimeMillis() - startTime;
         System.out.println("Elapsed time: " + estimatedTime / 1000 + "s");
+    }
+
+    private static void getConfiguration() throws Exception {
+        FileInputStream propFile = new FileInputStream("properties.txt");
+        Properties p = new Properties(System.getProperties());
+        p.load(propFile);
+        System.setProperties(p);
+
+        // Get agents & orderbooks
+        agents = System.getProperty("atom.agents").split(",");
+        orderBooks = System.getProperty("atom.orderbooks").split(",");
     }
 }

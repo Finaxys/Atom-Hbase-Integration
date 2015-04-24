@@ -9,6 +9,7 @@ import v13.agents.Agent;
 import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.util.logging.*;
 
@@ -37,23 +38,28 @@ class HBaseLogger extends Logger
     private long stackedPuts = 0;
     private long flushedPuts = 0;
 
-    public HBaseLogger(Output output, String tableName, String cfName)
-    {
-        super(System.out);
+    public HBaseLogger(Output output, String filename, String tableName, String cfName) throws Exception {
+        super(filename);
 
+        init(output, tableName, cfName);
+    }
+
+    public HBaseLogger(Output output, PrintStream o, String tableName, String cfName) throws Exception {
+        super(o);
+
+        init(output, tableName, cfName);
+    }
+
+    public HBaseLogger(String tableName, String cfName) throws Exception {
+        init(Output.HBase, tableName, cfName);
+    }
+
+    public void init(Output output, String tableName, String cfName) throws Exception {
         cfall = Bytes.toBytes(cfName);
         this.output = output;
 
-        // Mini Cluster
-    /* Configuration MiniCluster */
-    /* conf = new Configuration(); */
-    /* try { */
-    /*   conf.addResource(new FileInputStream("/tmp/configuration.xml")); */
-    /* } catch (FileNotFoundException e) { */
-    /*   e.printStackTrace(); */
-    /* } */
 
-        if (output == Output.SystemOut)
+        if (output == Output.Other)
             return;
 
         Configuration conf = HBaseConfiguration.create() ;
@@ -62,10 +68,13 @@ class HBaseLogger extends Logger
             conf.addResource(new File("hbase-site.xml").getAbsoluteFile().toURI().toURL());
             conf.addResource(new File("hdfs-site.xml").getAbsoluteFile().toURI().toURL());
         } catch (MalformedURLException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Could not get hbase configuration files", e);
+            throw new Exception("hbase", e);
         }
+
         LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.property.clientPort"));
         LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.quorum"));
+
         conf.reloadConfiguration();
 
         LOGGER.log(Level.INFO, "Configuration completed");
@@ -103,29 +112,15 @@ class HBaseLogger extends Logger
             table.setAutoFlushTo(false);
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Could not get table " + tableName, e);
+            throw new Exception("Table", e);
         }
-    }
-
-    public void close()  {
-        if (output == Output.SystemOut)
-            return;
-
-        flushPuts();
-        try {
-            table.close();
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Could not close table", e);
-        }
-
-        System.out.println("Closing table with " + flushedPuts + " puts");
     }
 
     @Override
     public void    agent(Agent a, Order o, PriceRecord pr)
     {
-        if (output != Output.HBase)
-            super.agent(a, o, pr);
-        if (output == Output.SystemOut)
+        super.agent(a, o, pr);
+        if (output == Output.Other)
             return;
 
         Put p = new Put(Bytes.toBytes(createRequired("A", idAgent++)));
@@ -140,9 +135,8 @@ class HBaseLogger extends Logger
     @Override
     public void    exec(Order o)
     {
-        if (output != Output.HBase)
-            super.exec(o);
-        if (output == Output.SystemOut)
+        super.exec(o);
+        if (output == Output.Other)
             return;
 
         Put p = new Put(Bytes.toBytes(createRequired("E", idExec++)));
@@ -154,9 +148,8 @@ class HBaseLogger extends Logger
     @Override
     public void    order(Order o)
     {
-        if (output != Output.HBase)
-            super.order(o);
-        if (output == Output.SystemOut)
+        super.order(o);
+        if (output == Output.Other)
             return;
 
         Put p = new Put(Bytes.toBytes(createRequired("O", idOrder++)));
@@ -182,9 +175,8 @@ class HBaseLogger extends Logger
     @Override
     public void    price(PriceRecord pr, long bestAskPrice, long bestBidPrice)
     {
-        if (output != Output.HBase)
-            super.price(pr, bestAskPrice, bestBidPrice);
-        if (output == Output.SystemOut)
+        super.price(pr, bestAskPrice, bestBidPrice);
+        if (output == Output.Other)
             return;
 
         Put p = new Put(Bytes.toBytes(createRequired("P", idPrice++)));
@@ -203,9 +195,8 @@ class HBaseLogger extends Logger
     @Override
     public void    day(int nbDays, java.util.Collection<OrderBook> orderbooks)
     {
-        if (output != Output.HBase)
-            super.day(nbDays, orderbooks);
-        if (output == Output.SystemOut)
+        super.day(nbDays, orderbooks);
+        if (output == Output.Other)
             return;
 
         for (OrderBook ob : orderbooks)
@@ -230,9 +221,8 @@ class HBaseLogger extends Logger
     @Override
     public void    tick(Day day, java.util.Collection<OrderBook> orderbooks)
     {
-        if (output != Output.HBase)
-            super.tick(day, orderbooks);
-        if (output == Output.SystemOut)
+        super.tick(day, orderbooks);
+        if (output == Output.Other)
             return;
 
         lastTickDay = day;
@@ -293,6 +283,21 @@ class HBaseLogger extends Logger
 
         if (flushedPuts % 100000 < 1000)
             System.out.println("Flushed " + flushedPuts + " puts");
+    }
+
+    public void close() throws Exception {
+        if (output == Output.Other)
+            return;
+
+        flushPuts();
+        try {
+            table.close();
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Could not close table", e);
+            throw new Exception("Closing", e);
+        }
+
+        System.out.println("Closing table with " + flushedPuts + " puts");
     }
 
     private String createRequired(String name, long id)
