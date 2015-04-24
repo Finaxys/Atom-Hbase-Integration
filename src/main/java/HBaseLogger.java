@@ -122,6 +122,8 @@ class HBaseLogger extends Logger
             LOGGER.log(Level.SEVERE, "Could not get table " + tableName, e);
             throw new Exception("Table", e);
         }
+
+        LOGGER.log(Level.INFO, "Configuration completed");
     }
 
     @Override
@@ -196,6 +198,7 @@ class HBaseLogger extends Logger
         p.add(cfall, Bytes.toBytes("order2"), Bytes.toBytes(pr.extId2));
         p.add(cfall, Bytes.toBytes("bestask"), Bytes.toBytes(bestAskPrice));
         p.add(cfall, Bytes.toBytes("bestbid"), Bytes.toBytes(bestBidPrice));
+        p.add(cfall, Bytes.toBytes("timestamp"), Bytes.toBytes(pr.timestamp));
 
         putTable(p);
     }
@@ -304,7 +307,7 @@ class HBaseLogger extends Logger
             throw new Exception("Closing", e);
         }
 
-        LOGGER.log(Level.INFO, "Closing table with " + flushedPuts + " puts");
+        LOGGER.log(Level.INFO, "Closing table with " + (flushedPuts + stackedPuts) + " puts");
     }
 
     private String createRequired(String name)

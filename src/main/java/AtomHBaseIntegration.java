@@ -78,6 +78,8 @@ public class AtomHBaseIntegration
 
         sim.setLogger(logger);
 
+        LOGGER.log(Level.INFO, "Setting up agents and orderbooks");
+
         // Create Agents and Order book to MarketMaker depending properties
         boolean marketmaker = System.getProperty("atom.marketmaker", "true").equals("true");
         for (String agent : agents)
@@ -89,10 +91,14 @@ public class AtomHBaseIntegration
                 sim.addNewOrderBook(ob);
         }
 
+        LOGGER.log(Level.INFO, "Launching simulation");
+
         sim.run(Day.createEuroNEXT(Integer.parseInt(System.getProperty("simul.tick.opening", "0")),
-                Integer.parseInt(System.getProperty("simul.tick.continuous", "10")),
-                Integer.parseInt(System.getProperty("simul.tick.closing", "0"))),
+                        Integer.parseInt(System.getProperty("simul.tick.continuous", "10")),
+                        Integer.parseInt(System.getProperty("simul.tick.closing", "0"))),
                 Integer.parseInt(System.getProperty("simul.days", "1")));
+
+        LOGGER.log(Level.INFO, "Closing up");
 
         sim.market.close();
 
