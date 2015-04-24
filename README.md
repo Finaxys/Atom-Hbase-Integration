@@ -3,7 +3,7 @@
 ## Launch
 
 - Go to folder containing : atom.jar / Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar / properties.xml
-- Modify properties.xml depending on your need
+- Modify properties.txt depending on your need
   - Set the path of the config files of hbase : hbase-site.xml | hdfs-site.xml | core-site.xml
   - Orderbooks and agents are set by symbol. See DOW30 example to create your own liste
 - Launch application with this command:
