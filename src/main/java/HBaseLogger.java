@@ -1,3 +1,4 @@
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
@@ -24,6 +25,8 @@ class HBaseLogger extends Logger
     private HTable table;
     private Day lastTickDay;
 
+    private long idTrace = 0;
+
     private long idOrder = 0;
     private long idPrice = 0;
     private long idAgent = 0;
@@ -37,6 +40,8 @@ class HBaseLogger extends Logger
 
     private long stackedPuts = 0;
     private long flushedPuts = 0;
+    private boolean autoflush;
+    private long stackPuts;
 
     public HBaseLogger(Output output, String filename, String tableName, String cfName) throws Exception {
         super(filename);
@@ -58,15 +63,17 @@ class HBaseLogger extends Logger
         cfall = Bytes.toBytes(cfName);
         this.output = output;
 
-
         if (output == Output.Other)
             return;
 
+        autoflush = Boolean.parseBoolean(System.getProperty("hbase.autoflush", "false"));
+        stackPuts = Integer.parseInt(System.getProperty("hbase.stackputs", "1000"));
+
         Configuration conf = HBaseConfiguration.create() ;
         try {
-            conf.addResource(new File("core-site.xml").getAbsoluteFile().toURI().toURL());
-            conf.addResource(new File("hbase-site.xml").getAbsoluteFile().toURI().toURL());
-            conf.addResource(new File("hdfs-site.xml").getAbsoluteFile().toURI().toURL());
+            conf.addResource(new File(System.getProperty("hbase.conf.core", "core-site.xml")).getAbsoluteFile().toURI().toURL());
+            conf.addResource(new File(System.getProperty("hbase.conf.hbase", "hbase-site.xml")).getAbsoluteFile().toURI().toURL());
+            conf.addResource(new File(System.getProperty("hbase.conf.hdfs", "hdfs-site.xml")).getAbsoluteFile().toURI().toURL());
         } catch (MalformedURLException e) {
             LOGGER.log(Level.SEVERE, "Could not get hbase configuration files", e);
             throw new Exception("hbase", e);
@@ -109,7 +116,7 @@ class HBaseLogger extends Logger
             LOGGER.log(Level.INFO, "Getting table information");
             table = new HTable(conf, tableName);
 //            AutoFlushing
-            table.setAutoFlushTo(false);
+            table.setAutoFlushTo(autoflush);
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Could not get table " + tableName, e);
             throw new Exception("Table", e);
@@ -259,7 +266,7 @@ class HBaseLogger extends Logger
             ++stackedPuts;
 
             // Flushing every X
-            if (stackedPuts > 1000)
+            if (!autoflush && stackedPuts > stackPuts)
                 flushPuts();
 
         } catch (InterruptedIOException e) {
@@ -280,16 +287,15 @@ class HBaseLogger extends Logger
 
         flushedPuts += stackedPuts;
         stackedPuts = 0;
-
-        if (flushedPuts % 100000 < 1000)
-            System.out.println("Flushed " + flushedPuts + " puts");
     }
 
     public void close() throws Exception {
         if (output == Output.Other)
             return;
 
-        flushPuts();
+        if (!autoflush)
+            flushPuts();
+
         try {
             table.close();
         } catch (IOException e) {
@@ -297,7 +303,7 @@ class HBaseLogger extends Logger
             throw new Exception("Closing", e);
         }
 
-        System.out.println("Closing table with " + flushedPuts + " puts");
+        LOGGER.log(Level.INFO, "Closing table with " + flushedPuts + " puts");
     }
 
     private String createRequired(String name, long id)
