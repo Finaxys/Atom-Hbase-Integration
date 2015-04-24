@@ -68,6 +68,6 @@ public class AtomHBaseIntegration
 
 
         long estimatedTime = System.currentTimeMillis() - startTime;
-        System.out.println("Elapsed time: " + estimatedTime / 1000);
+        System.out.println("Elapsed time: " + estimatedTime / 1000 + "s");
     }
 }

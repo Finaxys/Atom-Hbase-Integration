@@ -31,6 +31,7 @@ class HBaseLogger extends Logger
     private byte[] cfall;
 
     private long stackedPuts = 0;
+    private long flushedPuts = 0;
 
     public HBaseLogger(Output output, String tableName, String cfName)
     {
@@ -63,7 +64,7 @@ class HBaseLogger extends Logger
         System.out.println(conf.get("hbase.zookeeper.quorum"));
         conf.reloadConfiguration();
 
-        System.out.println("Conf complete");
+        System.out.println("Configuration complete");
 
         try {
             connection =  HConnectionManager.createConnection(conf);
@@ -95,7 +96,7 @@ class HBaseLogger extends Logger
             System.out.println("Getting table information");
             table = new HTable(conf, tableName);
 //            AutoFlushing
-//            table.setAutoFlushTo(false);
+            table.setAutoFlushTo(false);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -105,10 +106,10 @@ class HBaseLogger extends Logger
         if (output == Output.SystemOut)
             return;
 
-//        flushPuts();
+        flushPuts();
         table.close();
 
-        System.out.println("Flushing table with " + stackedPuts + " puts");
+        System.out.println("Closing table with " + flushedPuts + " puts");
     }
 
     @Override
@@ -259,13 +260,9 @@ class HBaseLogger extends Logger
             table.put(p);
             ++stackedPuts;
 
-//            // Flushing every X
-//            if (stackedPuts > 1000)
-//            {
-//                System.out.println("Flushing " + stackedPuts + " puts");
-//                flushPuts();
-//                stackedPuts = 0;
-//            }
+            // Flushing every X
+            if (stackedPuts > 1000)
+                flushPuts();
 
         } catch (InterruptedIOException e) {
             e.printStackTrace();
@@ -276,8 +273,11 @@ class HBaseLogger extends Logger
 
     private void flushPuts() throws InterruptedIOException, RetriesExhaustedWithDetailsException {
         table.flushCommits();
-        System.out.println(stackedPuts);
+        flushedPuts += stackedPuts;
         stackedPuts = 0;
+
+        if (flushedPuts % 100000 == 0)
+            System.out.println("Flushed " + flushedPuts + " puts");
     }
 
     private String createRequired(String name, long id)
