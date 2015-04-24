@@ -1,12 +1,9 @@
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import v13.Day;
 import v13.MonothreadedSimulation;
 import v13.Simulation;
 import v13.agents.ZIT;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,14 +33,15 @@ public class AtomHBaseIntegration
         }
         catch (Exception e) {
             LOGGER.log(Level.SEVERE, "Could not load properties", e);
+            return;
         }
 
         String tableName = System.getProperty("hbase.table", "trace");
         String cfName = System.getProperty("hbase.cf", "cf");
-        boolean outHbase = Boolean.parseBoolean(System.getProperty("simul.output.hbase", "true"));
+        boolean outHbase = System.getProperty("simul.output.hbase", "true").equals("true");
         String outFile = System.getProperty("simul.output.file", "");
-        boolean outSystem = Boolean.parseBoolean(System.getProperty("simul.output.standard", "true"));
-        
+        boolean outSystem = System.getProperty("simul.output.standard", "true").equals("true");
+
         // How long
         long startTime = System.currentTimeMillis();
 
