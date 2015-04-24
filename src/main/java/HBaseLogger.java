@@ -276,7 +276,7 @@ class HBaseLogger extends Logger
         flushedPuts += stackedPuts;
         stackedPuts = 0;
 
-        if (flushedPuts % 100000 == 0)
+        if (flushedPuts % 100000 < 1000)
             System.out.println("Flushed " + flushedPuts + " puts");
     }
 
