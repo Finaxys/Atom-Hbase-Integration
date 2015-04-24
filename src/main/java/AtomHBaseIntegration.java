@@ -4,6 +4,9 @@ import v13.Simulation;
 import v13.agents.ZIT;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -22,8 +25,8 @@ public class AtomHBaseIntegration
     // Static infos
     static public final String[] DOW2 = { "MMM", "AXP"};
     static public final String[] DOW30 = { "MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "DIS", "DD", "XOM", "GE", "GS", "HD", "IBM", "INTC", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UTX", "UNH", "VZ", "V", "WMT"};
-    static private String[] orderBooks;
-    static private String[] agents;
+    static private List<String> orderBooks;
+    static private List<String> agents;
 
     // Main config for Atom
     public static void main(String args[]) throws IOException {
@@ -112,7 +115,16 @@ public class AtomHBaseIntegration
         System.setProperties(p);
 
         // Get agents & orderbooks
-        agents = System.getProperty("atom.agents").split(",");
-        orderBooks = System.getProperty("atom.orderbooks").split(",");
+        String obsym = System.getProperty("atom.orderbooks", "");
+        String agsym = System.getProperty("atom.agents", "");
+
+        agents = Arrays.asList(System.getProperty("symbols.agents." + agsym, "").split("\\s*,\\s*"));
+        orderBooks = Arrays.asList(System.getProperty("symbols.orderbooks." + obsym, "").split("\\s*,\\s*"));
+
+        if (agents.isEmpty() || orderBooks.isEmpty())
+        {
+            LOGGER.log(Level.SEVERE, "Agents/Orderbooks not set");
+            throw new Exception("agents/orderbooks");
+        }
     }
 }
