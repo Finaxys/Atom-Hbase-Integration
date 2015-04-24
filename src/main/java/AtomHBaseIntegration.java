@@ -4,6 +4,9 @@ import v13.Simulation;
 import v13.agents.ZIT;
 
 import java.io.*;
+import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 enum Output
 {
@@ -17,15 +20,23 @@ public class AtomHBaseIntegration
     // Static infos
     static public final String[] DOW2 = { "MMM", "AXP"};
     static public final String[] DOW30 = { "MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "DIS", "DD", "XOM", "GE", "GS", "HD", "IBM", "INTC", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UTX", "UNH", "VZ", "V", "WMT"};
-
+    private static final Logger LOGGER = Logger.getLogger( AtomHBaseIntegration.class.getName() );
 
     // Main config for Atom
     public static void main(String args[]) throws IOException {
-        if (args.length == 0)
-        {
-            System.out.println("Arguments: Output [Table Name=atom] [Cf Name=cf] --- Log: 0=HBase + System.out|1=Only HBase|2=Only System.out");
-            return ;
+        // Loading properties
+        try {
+            FileInputStream propFile = new FileInputStream("properties.txt");
+            Properties p = new Properties(System.getProperties());
+            p.load(propFile);
+            System.setProperties(p);
+            // display new properties
+            System.getProperties().list(System.out);
         }
+        catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Could not load properties", e);
+        }
+
 
         // Pre config arguments
         Output output;

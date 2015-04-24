@@ -3,15 +3,19 @@ import org.apache.hadoop.hbase.*;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.util.Bytes;
 import v13.*;
+import v13.Logger;
 import v13.agents.Agent;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.MalformedURLException;
+import java.util.logging.*;
 
 class HBaseLogger extends Logger
 {
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(HBaseLogger.class.getName());
+
     private Configuration conf;
     private HConnection connection;
     private HBaseAdmin admin;
@@ -60,54 +64,58 @@ class HBaseLogger extends Logger
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
-        System.out.println(conf.get("hbase.zookeeper.property.clientPort"));
-        System.out.println(conf.get("hbase.zookeeper.quorum"));
+        LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.property.clientPort"));
+        LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.quorum"));
         conf.reloadConfiguration();
 
-        System.out.println("Configuration complete");
+        LOGGER.log(Level.INFO, "Configuration completed");
 
         try {
             connection =  HConnectionManager.createConnection(conf);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Could not create Connection", e);
         }
         HBaseAdmin admin = null;
         try {
             admin = new HBaseAdmin(connection);
         } catch (MasterNotRunningException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Master server not running", e);
         } catch (ZooKeeperConnectionException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Could not connect to ZooKeeper", e);
         }
         tableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
         try {
-            System.out.println("Creating table");
-            System.out.println(admin.getClusterStatus());
+            LOGGER.log(Level.INFO, "Creating table");
+            LOGGER.log(Level.INFO, admin.getClusterStatus().toString());
 
             tableDescriptor.addFamily(new HColumnDescriptor(cfName));
             admin.createTable(tableDescriptor);
 
-            System.out.println("Table created");
+            LOGGER.log(Level.INFO, "Table Created");
         } catch (IOException e) {
-            System.out.println("Table already created");
+            LOGGER.log(Level.FINEST, "Table already created");
         }
 
         try {
-            System.out.println("Getting table information");
+            LOGGER.log(Level.INFO, "Getting table information");
             table = new HTable(conf, tableName);
 //            AutoFlushing
             table.setAutoFlushTo(false);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.log(Level.SEVERE, "Could not get table " + tableName, e);
         }
     }
 
-    public void close() throws IOException {
+    public void close()  {
         if (output == Output.SystemOut)
             return;
 
         flushPuts();
-        table.close();
+        try {
+            table.close();
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Could not close table", e);
+        }
 
         System.out.println("Closing table with " + flushedPuts + " puts");
     }
@@ -271,8 +279,15 @@ class HBaseLogger extends Logger
         }
     }
 
-    private void flushPuts() throws InterruptedIOException, RetriesExhaustedWithDetailsException {
-        table.flushCommits();
+    private void flushPuts(){
+        try {
+            table.flushCommits();
+        } catch (InterruptedIOException e) {
+            LOGGER.log(Level.SEVERE, "Could not flush table", e);
+        } catch (RetriesExhaustedWithDetailsException e) {
+            LOGGER.log(Level.SEVERE, "Could not flush table ", e);
+        }
+
         flushedPuts += stackedPuts;
         stackedPuts = 0;
 

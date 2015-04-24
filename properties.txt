@@ -1,0 +1,8 @@
+simul.table=trace
+simul.cf=cf
+simul.days=1
+simul.tick.opening=50
+simul.tick.continuous=500
+simul.tick.closing=0
+simul.output=systemout #systemout|hbase|filename
+simul.agents=100
