@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.*;
 
 class HBaseLogger extends Logger
@@ -25,7 +26,7 @@ class HBaseLogger extends Logger
     private HTable table;
     private Day lastTickDay;
 
-    private long idTrace = 0;
+    private AtomicLong idTrace = new AtomicLong(0);
 
     private long idOrder = 0;
     private long idPrice = 0;
@@ -130,7 +131,7 @@ class HBaseLogger extends Logger
         if (output == Output.Other)
             return;
 
-        Put p = new Put(Bytes.toBytes(createRequired("A", idAgent++)));
+        Put p = new Put(Bytes.toBytes(createRequired("A")));
         p.add(cfall, Bytes.toBytes("name"), Bytes.toBytes(a.name));
         p.add(cfall, Bytes.toBytes("cash"), Bytes.toBytes(a.cash));
         p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(o.obName));
@@ -146,7 +147,7 @@ class HBaseLogger extends Logger
         if (output == Output.Other)
             return;
 
-        Put p = new Put(Bytes.toBytes(createRequired("E", idExec++)));
+        Put p = new Put(Bytes.toBytes(createRequired("E")));
         p.add(cfall, Bytes.toBytes("sender"), Bytes.toBytes(o.sender.name));
         p.add(cfall, Bytes.toBytes("extId"), Bytes.toBytes(o.extId));
 
@@ -159,7 +160,7 @@ class HBaseLogger extends Logger
         if (output == Output.Other)
             return;
 
-        Put p = new Put(Bytes.toBytes(createRequired("O", idOrder++)));
+        Put p = new Put(Bytes.toBytes(createRequired("O")));
         p.add(cfall, Bytes.toBytes(o.type), Bytes.toBytes(o.type));
         p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(o.obName));
         p.add(cfall, Bytes.toBytes("sender"), Bytes.toBytes(o.sender.name));
@@ -186,7 +187,7 @@ class HBaseLogger extends Logger
         if (output == Output.Other)
             return;
 
-        Put p = new Put(Bytes.toBytes(createRequired("P", idPrice++)));
+        Put p = new Put(Bytes.toBytes(createRequired("P")));
         p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(pr.obName));
         p.add(cfall, Bytes.toBytes("price"), Bytes.toBytes(pr.price));
         p.add(cfall, Bytes.toBytes("executedQuty"), Bytes.toBytes(pr.quantity));
@@ -208,7 +209,7 @@ class HBaseLogger extends Logger
 
         for (OrderBook ob : orderbooks)
         {
-            Put p = new Put(Bytes.toBytes(createRequired("D", idDay++)));
+            Put p = new Put(Bytes.toBytes(createRequired("D")));
 
             p.add(cfall, Bytes.toBytes("NumDay"), Bytes.toBytes(nbDays));
             p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(nbDays));
@@ -235,7 +236,7 @@ class HBaseLogger extends Logger
         lastTickDay = day;
         for (OrderBook ob : orderbooks)
         {
-            Put p = new Put(Bytes.toBytes(createRequired("T", idTick++)));
+            Put p = new Put(Bytes.toBytes(createRequired("T")));
 
             p.add(cfall, Bytes.toBytes("numTick"), Bytes.toBytes(day.currentPeriod));
             p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(ob.obName));
@@ -306,10 +307,10 @@ class HBaseLogger extends Logger
         LOGGER.log(Level.INFO, "Closing table with " + flushedPuts + " puts");
     }
 
-    private String createRequired(String name, long id)
+    private String createRequired(String name)
     {
         String required = "";
-        required += String.format("%010d", id) + name;
+        required += String.format("%010d", idTrace.incrementAndGet()) + name;
         return required;
     }
 }
