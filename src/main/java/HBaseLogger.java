@@ -93,7 +93,7 @@ class HBaseLogger extends Logger
             LOGGER.log(Level.SEVERE, "Could not create Connection", e);
             throw new Exception("hbase connection", e);
         }
-        
+
         HBaseAdmin admin = null;
         try {
             admin = new HBaseAdmin(connection);
