@@ -91,15 +91,20 @@ class HBaseLogger extends Logger
             connection =  HConnectionManager.createConnection(conf);
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Could not create Connection", e);
+            throw new Exception("hbase connection", e);
         }
+        
         HBaseAdmin admin = null;
         try {
             admin = new HBaseAdmin(connection);
         } catch (MasterNotRunningException e) {
             LOGGER.log(Level.SEVERE, "Master server not running", e);
+            throw new Exception("hbase master server", e);
         } catch (ZooKeeperConnectionException e) {
             LOGGER.log(Level.SEVERE, "Could not connect to ZooKeeper", e);
+            throw new Exception("zookeeper", e);
         }
+
         tableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
         try {
             LOGGER.log(Level.INFO, "Creating table");
