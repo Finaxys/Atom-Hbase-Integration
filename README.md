@@ -2,8 +2,8 @@
 
 ## Dependencies
 
-atom.jar (v13) -> http://atom.univ-lille1.fr/ at the base of the project
-Maven will take care of the rest
+- atom.jar (v13) -> http://atom.univ-lille1.fr/ at the base of the project
+- Maven will take care of the rest
 
 ## Launch
 
