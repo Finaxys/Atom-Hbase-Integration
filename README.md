@@ -1,5 +1,10 @@
 # Atom-Hbase-Integration
 
+## Dependencies
+
+atom.jar (v13) -> http://atom.univ-lille1.fr/ at the base of the project
+Maven will take care of the rest
+
 ## Launch
 
 - Go to folder containing : atom.jar / Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar / properties.xml
