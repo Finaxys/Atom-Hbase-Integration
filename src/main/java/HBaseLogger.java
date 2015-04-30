@@ -7,10 +7,7 @@ import v13.*;
 import v13.Logger;
 import v13.agents.Agent;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InterruptedIOException;
-import java.io.PrintStream;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.*;
@@ -72,9 +69,15 @@ class HBaseLogger extends Logger
 
         Configuration conf = HBaseConfiguration.create() ;
         try {
-            conf.addResource(new File(System.getProperty("hbase.conf.core", "core-site.xml")).getAbsoluteFile().toURI().toURL());
-            conf.addResource(new File(System.getProperty("hbase.conf.hbase", "hbase-site.xml")).getAbsoluteFile().toURI().toURL());
-            conf.addResource(new File(System.getProperty("hbase.conf.hdfs", "hdfs-site.xml")).getAbsoluteFile().toURI().toURL());
+            String minicluster = System.getProperty("hbase.conf.minicluster", "");
+            if (!minicluster.isEmpty())
+                conf.addResource(new FileInputStream(minicluster));
+            else
+            {
+                conf.addResource(new File(System.getProperty("hbase.conf.core", "core-site.xml")).getAbsoluteFile().toURI().toURL());
+                conf.addResource(new File(System.getProperty("hbase.conf.hbase", "hbase-site.xml")).getAbsoluteFile().toURI().toURL());
+                conf.addResource(new File(System.getProperty("hbase.conf.hdfs", "hdfs-site.xml")).getAbsoluteFile().toURI().toURL());
+            }
         } catch (MalformedURLException e) {
             LOGGER.log(Level.SEVERE, "Could not get hbase configuration files", e);
             throw new Exception("hbase", e);
