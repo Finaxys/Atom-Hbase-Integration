@@ -1,327 +1,352 @@
-import com.sun.org.apache.xpath.internal.operations.Bool;
+import com.sun.istack.NotNull;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.*;
-import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.MasterNotRunningException;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.ZooKeeperConnectionException;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
+import org.apache.hadoop.hbase.client.HConnectionManager;
+import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
+import org.apache.hadoop.hbase.types.DataType;
 import org.apache.hadoop.hbase.util.Bytes;
-import v13.*;
+import v13.Day;
+import v13.LimitOrder;
 import v13.Logger;
+import v13.Order;
+import v13.OrderBook;
+import v13.PriceRecord;
 import v13.agents.Agent;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.*;
+import java.util.logging.Level;
 
-class HBaseLogger extends Logger
-{
-    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(HBaseLogger.class.getName());
+class HBaseLogger extends Logger {
+  private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(HBaseLogger.class.getName());
+  private Configuration conf;
 
-    private Configuration conf;
-    private HConnection connection;
-    private HBaseAdmin admin;
-    private HTableDescriptor tableDescriptor;
-    private HTable table;
-    private Day lastTickDay;
+  private HConnection connection;
+  private HBaseAdmin admin;
+  private HTableDescriptor tableDescriptor;
+  private HTable table;
+  private Day lastTickDay;
+  private AtomicLong idTrace = new AtomicLong(0);
 
-    private AtomicLong idTrace = new AtomicLong(0);
+  private long idOrder = 0;
 
-    private long idOrder = 0;
-    private long idPrice = 0;
-    private long idAgent = 0;
-    private long idExec = 0;
-    private long idTick = 0;
-    private long idDay = 0;
+  final HBaseDataTypeEncoder hBaseDataTypeEncoder = new HBaseDataTypeEncoder();
 
-    private Output output;
+  private long idPrice = 0;
+  private long idAgent = 0;
+  private long idExec = 0;
+  private long idTick = 0;
+  private long idDay = 0;
 
-    private byte[] cfall;
+  private Output output;
 
-    private long stackedPuts = 0;
-    private long flushedPuts = 0;
-    private boolean autoflush;
-    private long stackPuts;
+  private byte[] cfall;
 
-    public HBaseLogger(Output output, String filename, String tableName, String cfName) throws Exception {
-        super(filename);
+  private long stackedPuts = 0;
+  private long flushedPuts = 0;
+  private boolean autoflush;
+  private long stackPuts;
 
-        init(output, tableName, cfName);
+  public HBaseLogger(Output output, String filename, String tableName, String cfName) throws Exception {
+    super(filename);
+
+    init(output, tableName, cfName);
+  }
+
+  public HBaseLogger(Output output, PrintStream o, String tableName, String cfName) throws Exception {
+    super(o);
+
+    init(output, tableName, cfName);
+  }
+
+  public HBaseLogger(String tableName, String cfName) throws Exception {
+    init(Output.HBase, tableName, cfName);
+  }
+
+  public void init(Output output, String tableName, String cfName) throws Exception {
+    cfall = Bytes.toBytes(cfName);
+    this.output = output;
+
+    if (output == Output.Other)
+      return;
+
+    autoflush = Boolean.parseBoolean(System.getProperty("hbase.autoflush", "false"));
+    stackPuts = Integer.parseInt(System.getProperty("hbase.stackputs", "1000"));
+
+    Configuration conf = HBaseConfiguration.create();
+    try {
+      String minicluster = System.getProperty("hbase.conf.minicluster", "");
+      if (!minicluster.isEmpty())
+        conf.addResource(new FileInputStream(minicluster));
+      else {
+        conf.addResource(new File(System.getProperty("hbase.conf.core", "core-site.xml")).getAbsoluteFile().toURI().toURL());
+        conf.addResource(new File(System.getProperty("hbase.conf.hbase", "hbase-site.xml")).getAbsoluteFile().toURI().toURL());
+        conf.addResource(new File(System.getProperty("hbase.conf.hdfs", "hdfs-site.xml")).getAbsoluteFile().toURI().toURL());
+      }
+    } catch (MalformedURLException e) {
+      LOGGER.log(Level.SEVERE, "Could not get hbase configuration files", e);
+      throw new Exception("hbase", e);
     }
 
-    public HBaseLogger(Output output, PrintStream o, String tableName, String cfName) throws Exception {
-        super(o);
+    LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.property.clientPort"));
+    LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.quorum"));
 
-        init(output, tableName, cfName);
+    conf.reloadConfiguration();
+
+    LOGGER.log(Level.INFO, "Configuration completed");
+
+    try {
+      connection = HConnectionManager.createConnection(conf);
+    } catch (IOException e) {
+      LOGGER.log(Level.SEVERE, "Could not create Connection", e);
+      throw new Exception("hbase connection", e);
     }
 
-    public HBaseLogger(String tableName, String cfName) throws Exception {
-        init(Output.HBase, tableName, cfName);
+    HBaseAdmin admin = null;
+    try {
+      admin = new HBaseAdmin(connection);
+    } catch (MasterNotRunningException e) {
+      LOGGER.log(Level.SEVERE, "Master server not running", e);
+      throw new Exception("hbase master server", e);
+    } catch (ZooKeeperConnectionException e) {
+      LOGGER.log(Level.SEVERE, "Could not connect to ZooKeeper", e);
+      throw new Exception("zookeeper", e);
     }
 
-    public void init(Output output, String tableName, String cfName) throws Exception {
-        cfall = Bytes.toBytes(cfName);
-        this.output = output;
+    tableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
+    try {
+      LOGGER.log(Level.INFO, "Creating table");
+      LOGGER.log(Level.INFO, admin.getClusterStatus().toString());
 
-        if (output == Output.Other)
-            return;
+      tableDescriptor.addFamily(new HColumnDescriptor(cfName));
+      admin.createTable(tableDescriptor);
 
-        autoflush = Boolean.parseBoolean(System.getProperty("hbase.autoflush", "false"));
-        stackPuts = Integer.parseInt(System.getProperty("hbase.stackputs", "1000"));
+      LOGGER.log(Level.INFO, "Table Created");
+    } catch (IOException e) {
+      LOGGER.log(Level.FINEST, "Table already created");
+    }
 
-        Configuration conf = HBaseConfiguration.create() ;
-        try {
-            String minicluster = System.getProperty("hbase.conf.minicluster", "");
-            if (!minicluster.isEmpty())
-                conf.addResource(new FileInputStream(minicluster));
-            else
-            {
-                conf.addResource(new File(System.getProperty("hbase.conf.core", "core-site.xml")).getAbsoluteFile().toURI().toURL());
-                conf.addResource(new File(System.getProperty("hbase.conf.hbase", "hbase-site.xml")).getAbsoluteFile().toURI().toURL());
-                conf.addResource(new File(System.getProperty("hbase.conf.hdfs", "hdfs-site.xml")).getAbsoluteFile().toURI().toURL());
-            }
-        } catch (MalformedURLException e) {
-            LOGGER.log(Level.SEVERE, "Could not get hbase configuration files", e);
-            throw new Exception("hbase", e);
-        }
-
-        LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.property.clientPort"));
-        LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.quorum"));
-
-        conf.reloadConfiguration();
-
-        LOGGER.log(Level.INFO, "Configuration completed");
-
-        try {
-            connection =  HConnectionManager.createConnection(conf);
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Could not create Connection", e);
-            throw new Exception("hbase connection", e);
-        }
-
-        HBaseAdmin admin = null;
-        try {
-            admin = new HBaseAdmin(connection);
-        } catch (MasterNotRunningException e) {
-            LOGGER.log(Level.SEVERE, "Master server not running", e);
-            throw new Exception("hbase master server", e);
-        } catch (ZooKeeperConnectionException e) {
-            LOGGER.log(Level.SEVERE, "Could not connect to ZooKeeper", e);
-            throw new Exception("zookeeper", e);
-        }
-
-        tableDescriptor = new HTableDescriptor(TableName.valueOf(tableName));
-        try {
-            LOGGER.log(Level.INFO, "Creating table");
-            LOGGER.log(Level.INFO, admin.getClusterStatus().toString());
-
-            tableDescriptor.addFamily(new HColumnDescriptor(cfName));
-            admin.createTable(tableDescriptor);
-
-            LOGGER.log(Level.INFO, "Table Created");
-        } catch (IOException e) {
-            LOGGER.log(Level.FINEST, "Table already created");
-        }
-
-        try {
-            LOGGER.log(Level.INFO, "Getting table information");
-            table = new HTable(conf, tableName);
+    try {
+      LOGGER.log(Level.INFO, "Getting table information");
+      table = new HTable(conf, tableName);
 //            AutoFlushing
-            table.setAutoFlushTo(autoflush);
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Could not get table " + tableName, e);
-            throw new Exception("Table", e);
-        }
-
-        LOGGER.log(Level.INFO, "Configuration completed");
+      table.setAutoFlushTo(autoflush);
+    } catch (IOException e) {
+      LOGGER.log(Level.SEVERE, "Could not get table " + tableName, e);
+      throw new Exception("Table", e);
     }
 
-    @Override
-    public void    agent(Agent a, Order o, PriceRecord pr)
-    {
-        super.agent(a, o, pr);
-        if (output == Output.Other)
-            return;
+    LOGGER.log(Level.INFO, "Configuration completed");
+  }
 
-        Put p = new Put(Bytes.toBytes(createRequired("A")));
-        p.add(cfall, Bytes.toBytes("name"), Bytes.toBytes(a.name));
-        p.add(cfall, Bytes.toBytes("cash"), Bytes.toBytes(a.cash));
-        p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(o.obName));
-        p.add(cfall, Bytes.toBytes("nbInvest"), Bytes.toBytes(pr.quantity));
-        p.add(cfall, Bytes.toBytes("lastFixedPrice"), Bytes.toBytes(pr.price));
+  @Override
+  public void agent(Agent a, Order o, PriceRecord pr) {
+    super.agent(a, o, pr);
+    if (output == Output.Other)
+      return;
 
-        putTable(p);
-    }
-    @Override
-    public void    exec(Order o)
-    {
-        super.exec(o);
-        if (output == Output.Other)
-            return;
+    Put p = new Put(Bytes.toBytes(createRequired("A")));
+    p.add(cfall, Bytes.toBytes("name"), hBaseDataTypeEncoder.encodeString(a.name));
+    p.add(cfall, Bytes.toBytes("cash"), hBaseDataTypeEncoder.encodeLong(a.cash));
+    p.add(cfall, Bytes.toBytes("obName"), hBaseDataTypeEncoder.encodeString(o.obName));
+    p.add(cfall, Bytes.toBytes("nbInvest"), hBaseDataTypeEncoder.encodeInt(pr.quantity));
+    p.add(cfall, Bytes.toBytes("lastFixedPrice"), hBaseDataTypeEncoder.encodeLong(pr.price));
 
-        Put p = new Put(Bytes.toBytes(createRequired("E")));
-        p.add(cfall, Bytes.toBytes("sender"), Bytes.toBytes(o.sender.name));
-        p.add(cfall, Bytes.toBytes("extId"), Bytes.toBytes(o.extId));
+    putTable(p);
+  }
 
-        putTable(p);
-    }
-    @Override
-    public void    order(Order o)
-    {
-        super.order(o);
-        if (output == Output.Other)
-            return;
+  @Override
+  public void exec(Order o) {
+    super.exec(o);
+    if (output == Output.Other)
+      return;
 
-        Put p = new Put(Bytes.toBytes(createRequired("O")));
-        p.add(cfall, Bytes.toBytes(o.type), Bytes.toBytes(o.type));
-        p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(o.obName));
-        p.add(cfall, Bytes.toBytes("sender"), Bytes.toBytes(o.sender.name));
-        p.add(cfall, Bytes.toBytes("extId"), Bytes.toBytes(o.extId));
-        p.add(cfall, Bytes.toBytes("type"), Bytes.toBytes(o.type));
-        p.add(cfall, Bytes.toBytes("id"), Bytes.toBytes(o.id));
-        p.add(cfall, Bytes.toBytes("timestamp"), Bytes.toBytes(o.timestamp));
+    Put p = new Put(Bytes.toBytes(createRequired("E")));
+    p.add(cfall, Bytes.toBytes("sender"), hBaseDataTypeEncoder.encodeString(o.sender.name));
+    p.add(cfall, Bytes.toBytes("extId"), hBaseDataTypeEncoder.encodeString(o.extId));
 
-        if (o.getClass().equals(LimitOrder.class))
-        {
-            LimitOrder lo = (LimitOrder) o;
-            p.add(cfall, Bytes.toBytes("quty"), Bytes.toBytes(lo.quantity));
-            p.add(cfall, Bytes.toBytes("dir"), Bytes.toBytes(lo.direction));
-            p.add(cfall, Bytes.toBytes("price"), Bytes.toBytes(lo.price));
-            p.add(cfall, Bytes.toBytes("valid"), Bytes.toBytes(lo.validity));
-        }
+    putTable(p);
+  }
 
-        putTable(p);
-    }
-    @Override
-    public void    price(PriceRecord pr, long bestAskPrice, long bestBidPrice)
-    {
-        super.price(pr, bestAskPrice, bestBidPrice);
-        if (output == Output.Other)
-            return;
+  @Override
+  public void order(Order o) {
+    super.order(o);
+    if (output == Output.Other)
+      return;
 
-        Put p = new Put(Bytes.toBytes(createRequired("P")));
-        p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(pr.obName));
-        p.add(cfall, Bytes.toBytes("price"), Bytes.toBytes(pr.price));
-        p.add(cfall, Bytes.toBytes("executedQuty"), Bytes.toBytes(pr.quantity));
-        p.add(cfall, Bytes.toBytes("dir"), Bytes.toBytes(pr.dir));
-        p.add(cfall, Bytes.toBytes("order1"), Bytes.toBytes(pr.extId1));
-        p.add(cfall, Bytes.toBytes("order2"), Bytes.toBytes(pr.extId2));
-        p.add(cfall, Bytes.toBytes("bestask"), Bytes.toBytes(bestAskPrice));
-        p.add(cfall, Bytes.toBytes("bestbid"), Bytes.toBytes(bestBidPrice));
-        p.add(cfall, Bytes.toBytes("timestamp"), Bytes.toBytes(pr.timestamp));
+    Put p = new Put(Bytes.toBytes(createRequired("O")));
+    p.add(cfall, Bytes.toBytes("orderBookName"), hBaseDataTypeEncoder.encodeString(o.obName));
+    p.add(cfall, Bytes.toBytes("sender"), hBaseDataTypeEncoder.encodeString(o.sender.name));
+    p.add(cfall, Bytes.toBytes("extId"), hBaseDataTypeEncoder.encodeString(o.extId));
+    p.add(cfall, Bytes.toBytes("type"), hBaseDataTypeEncoder.encodeChar(o.type));
+    p.add(cfall, Bytes.toBytes("id"), hBaseDataTypeEncoder.encodeLong(o.id));
+    p.add(cfall, Bytes.toBytes("timestamp"), hBaseDataTypeEncoder.encodeLong(o.timestamp));
 
-        putTable(p);
+    if (o.getClass().equals(LimitOrder.class)) {
+      LimitOrder lo = (LimitOrder) o;
+      p.add(cfall, Bytes.toBytes("quantity"), hBaseDataTypeEncoder.encodeInt(lo.quantity));
+      p.add(cfall, Bytes.toBytes("direction"), hBaseDataTypeEncoder.encodeChar(lo.direction));
+      p.add(cfall, Bytes.toBytes("price"), hBaseDataTypeEncoder.encodeLong(lo.price));
+      p.add(cfall, Bytes.toBytes("validity"), hBaseDataTypeEncoder.encodeLong(lo.validity));
     }
 
-    @Override
-    public void    day(int nbDays, java.util.Collection<OrderBook> orderbooks)
-    {
-        super.day(nbDays, orderbooks);
-        if (output == Output.Other)
-            return;
+    putTable(p);
+  }
 
-        for (OrderBook ob : orderbooks)
-        {
-            Put p = new Put(Bytes.toBytes(createRequired("D")));
 
-            p.add(cfall, Bytes.toBytes("NumDay"), Bytes.toBytes(nbDays));
-            p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(nbDays));
-            p.add(cfall, Bytes.toBytes("FirstFixedPrice"), Bytes.toBytes(ob.firstPriceOfDay));
-            p.add(cfall, Bytes.toBytes("LowestPrice"), Bytes.toBytes(ob.lowestPriceOfDay));
-            p.add(cfall, Bytes.toBytes("HighestPrice"), Bytes.toBytes(ob.highestPriceOfDay));
-            long price = 0;
-            if (ob.lastFixedPrice != null)
-                price = ob.lastFixedPrice.price;
-            p.add(cfall, Bytes.toBytes("LastFixedPrice"), Bytes.toBytes(price));
-            p.add(cfall, Bytes.toBytes("nbPricesFixed"), Bytes.toBytes(ob.numberOfPricesFixed));
+  private byte[] encodeString(@NotNull String value) {
+    return hBaseDataTypeEncoder.encodeString(value);
+  }
 
-            putTable(p);
-        }
+  private byte[] encodeInt(int value) {
+    return hBaseDataTypeEncoder.encodeInt(value);
+  }
+
+  private byte[] encodeLong(long value) {
+
+    return hBaseDataTypeEncoder.encodeLong(value);
+  }
+
+  private byte[] encodeChar(@NotNull char value) {
+    return hBaseDataTypeEncoder.encodeChar(value);
+  }
+
+  private <T> byte[] encode(@NotNull DataType<T> dt, @NotNull T value) {
+    return hBaseDataTypeEncoder.encode(dt, value);
+  }
+
+  @Override
+  public void price(PriceRecord pr, long bestAskPrice, long bestBidPrice) {
+    super.price(pr, bestAskPrice, bestBidPrice);
+    if (output == Output.Other)
+      return;
+
+    Put p = new Put(Bytes.toBytes(createRequired("P")));
+    p.add(cfall, Bytes.toBytes("obName"), hBaseDataTypeEncoder.encodeString(pr.obName));
+    p.add(cfall, Bytes.toBytes("price"), hBaseDataTypeEncoder.encodeLong(pr.price));
+    p.add(cfall, Bytes.toBytes("executedQuty"), hBaseDataTypeEncoder.encodeInt(pr.quantity));
+    p.add(cfall, Bytes.toBytes("dir"), hBaseDataTypeEncoder.encodeChar(pr.dir));
+    p.add(cfall, Bytes.toBytes("order1"), hBaseDataTypeEncoder.encodeString(pr.extId1));
+    p.add(cfall, Bytes.toBytes("order2"), hBaseDataTypeEncoder.encodeString(pr.extId2));
+    p.add(cfall, Bytes.toBytes("bestask"), hBaseDataTypeEncoder.encodeLong(bestAskPrice));
+    p.add(cfall, Bytes.toBytes("bestbid"), hBaseDataTypeEncoder.encodeLong(bestBidPrice));
+    p.add(cfall, Bytes.toBytes("timestamp"), hBaseDataTypeEncoder.encodeLong(pr.timestamp));
+
+    putTable(p);
+  }
+
+  @Override
+  public void day(int nbDays, java.util.Collection<OrderBook> orderbooks) {
+    super.day(nbDays, orderbooks);
+    if (output == Output.Other)
+      return;
+
+    for (OrderBook ob : orderbooks) {
+      Put p = new Put(Bytes.toBytes(createRequired("D")));
+
+      p.add(cfall, Bytes.toBytes("NumDay"), hBaseDataTypeEncoder.encodeInt(nbDays));
+      p.add(cfall, Bytes.toBytes("orderBookName"), hBaseDataTypeEncoder.encodeString(ob.obName));
+      p.add(cfall, Bytes.toBytes("FirstFixedPrice"), hBaseDataTypeEncoder.encodeLong(ob.firstPriceOfDay));
+      p.add(cfall, Bytes.toBytes("LowestPrice"), hBaseDataTypeEncoder.encodeLong(ob.lowestPriceOfDay));
+      p.add(cfall, Bytes.toBytes("HighestPrice"), hBaseDataTypeEncoder.encodeLong(ob.highestPriceOfDay));
+      long price = 0;
+      if (ob.lastFixedPrice != null)
+        price = ob.lastFixedPrice.price;
+      p.add(cfall, Bytes.toBytes("LastFixedPrice"), hBaseDataTypeEncoder.encodeLong(price));
+      p.add(cfall, Bytes.toBytes("nbPricesFixed"), hBaseDataTypeEncoder.encodeLong(ob.numberOfPricesFixed));
+
+      putTable(p);
+    }
+  }
+
+  @Override
+  public void tick(Day day, java.util.Collection<OrderBook> orderbooks) {
+    super.tick(day, orderbooks);
+    if (output == Output.Other)
+      return;
+
+    lastTickDay = day;
+    for (OrderBook ob : orderbooks) {
+      Put p = new Put(Bytes.toBytes(createRequired("T")));
+      p.add(cfall, Bytes.toBytes("numTick"), hBaseDataTypeEncoder.encodeInt(day.currentPeriod));
+      p.add(cfall, Bytes.toBytes("orderBookName"), hBaseDataTypeEncoder.encodeString(ob.obName));
+
+      if (!ob.ask.isEmpty())
+        p.add(cfall, Bytes.toBytes("bestask"), hBaseDataTypeEncoder.encodeLong(ob.ask.last().price));
+
+      if (!ob.bid.isEmpty())
+        p.add(cfall, Bytes.toBytes("bestbid"), hBaseDataTypeEncoder.encodeLong(ob.bid.last().price));
+
+      if (ob.lastFixedPrice != null)
+        p.add(cfall, Bytes.toBytes("lastPrice"), hBaseDataTypeEncoder.encodeLong(ob.lastFixedPrice.price));
+
+      putTable(p);
+    }
+  }
+
+  private void putTable(Put p) {
+    try {
+      table.put(p);
+      ++stackedPuts;
+
+      // Flushing every X
+      if (!autoflush && stackedPuts > stackPuts)
+        flushPuts();
+
+    } catch (InterruptedIOException e) {
+      e.printStackTrace();
+    } catch (RetriesExhaustedWithDetailsException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void flushPuts() {
+    try {
+      table.flushCommits();
+    } catch (InterruptedIOException e) {
+      LOGGER.log(Level.SEVERE, "Could not flush table", e);
+    } catch (RetriesExhaustedWithDetailsException e) {
+      LOGGER.log(Level.SEVERE, "Could not flush table ", e);
     }
 
-    @Override
-    public void    tick(Day day, java.util.Collection<OrderBook> orderbooks)
-    {
-        super.tick(day, orderbooks);
-        if (output == Output.Other)
-            return;
+    flushedPuts += stackedPuts;
+    stackedPuts = 0;
+  }
 
-        lastTickDay = day;
-        for (OrderBook ob : orderbooks)
-        {
-            Put p = new Put(Bytes.toBytes(createRequired("T")));
+  public void close() throws Exception {
+    if (output == Output.Other)
+      return;
 
-            p.add(cfall, Bytes.toBytes("numTick"), Bytes.toBytes(day.currentPeriod));
-            p.add(cfall, Bytes.toBytes("obName"), Bytes.toBytes(ob.obName));
+    if (!autoflush)
+      flushPuts();
 
-            long price = 0;
-            if (!ob.ask.isEmpty())
-                price = ob.ask.last().price;
-            p.add(cfall, Bytes.toBytes("bestask"), Bytes.toBytes(price));
-
-            price = 0;
-            if (!ob.bid.isEmpty())
-                price = ob.bid.last().price;
-            p.add(cfall, Bytes.toBytes("bestbid"), Bytes.toBytes(price));
-
-            price = 0;
-            if (ob.lastFixedPrice != null)
-                price = ob.lastFixedPrice.price;
-            p.add(cfall, Bytes.toBytes("lastPrice"), Bytes.toBytes(price));
-
-            putTable(p);
-        }
+    try {
+      table.close();
+    } catch (IOException e) {
+      LOGGER.log(Level.SEVERE, "Could not close table", e);
+      throw new Exception("Closing", e);
     }
 
-    private void putTable(Put p)
-    {
-        try {
-            table.put(p);
-            ++stackedPuts;
+    LOGGER.log(Level.INFO, "Closing table with " + (flushedPuts + stackedPuts) + " puts");
+  }
 
-            // Flushing every X
-            if (!autoflush && stackedPuts > stackPuts)
-                flushPuts();
-
-        } catch (InterruptedIOException e) {
-            e.printStackTrace();
-        } catch (RetriesExhaustedWithDetailsException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void flushPuts(){
-        try {
-            table.flushCommits();
-        } catch (InterruptedIOException e) {
-            LOGGER.log(Level.SEVERE, "Could not flush table", e);
-        } catch (RetriesExhaustedWithDetailsException e) {
-            LOGGER.log(Level.SEVERE, "Could not flush table ", e);
-        }
-
-        flushedPuts += stackedPuts;
-        stackedPuts = 0;
-    }
-
-    public void close() throws Exception {
-        if (output == Output.Other)
-            return;
-
-        if (!autoflush)
-            flushPuts();
-
-        try {
-            table.close();
-        } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, "Could not close table", e);
-            throw new Exception("Closing", e);
-        }
-
-        LOGGER.log(Level.INFO, "Closing table with " + (flushedPuts + stackedPuts) + " puts");
-    }
-
-    private String createRequired(String name)
-    {
-        String required = "";
-        required += String.format("%010d", idTrace.incrementAndGet()) + name;
-        return required;
-    }
+  private String createRequired(String name) {
+    String required = "";
+    required += String.format("%010d", idTrace.incrementAndGet()) + name;
+    return required;
+  }
 }
