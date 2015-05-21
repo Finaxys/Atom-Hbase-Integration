@@ -40,15 +40,10 @@ class HBaseLogger extends Logger {
   private Day lastTickDay;
   private AtomicLong idTrace = new AtomicLong(0);
 
-  private long idOrder = 0;
+  private int countOrder;
+  private int countExec;
 
   final HBaseDataTypeEncoder hbEncoder = new HBaseDataTypeEncoder();
-
-  private long idPrice = 0;
-  private long idAgent = 0;
-  private long idExec = 0;
-  private long idTick = 0;
-  private long idDay = 0;
 
   private Output output;
 
@@ -158,12 +153,15 @@ class HBaseLogger extends Logger {
       return;
 
     Put p = new Put(Bytes.toBytes(createRequired("A")));
-    p.add(cfall, Bytes.toBytes("name"), hbEncoder.encodeString(a.name));
+    p.add(cfall, Bytes.toBytes("agentName"), hbEncoder.encodeString(a.name));
+    p.add(cfall, Bytes.toBytes("orderBookName"), hbEncoder.encodeString(o.obName));
     p.add(cfall, Bytes.toBytes("cash"), hbEncoder.encodeLong(a.cash));
-    p.add(cfall, Bytes.toBytes("obName"), hbEncoder.encodeString(o.obName));
-    p.add(cfall, Bytes.toBytes("nbInvest"), hbEncoder.encodeInt(pr.quantity));
-    p.add(cfall, Bytes.toBytes("lastFixedPrice"), hbEncoder.encodeLong(pr.price));
-
+    p.add(cfall, Bytes.toBytes("executed"), hbEncoder.encodeInt(pr.quantity));
+    p.add(cfall, Bytes.toBytes("price"), hbEncoder.encodeLong(pr.price));
+    if (o.getClass().equals(LimitOrder.class)) {
+      p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeInt(((LimitOrder)o).direction));
+      p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp));
+    }
     putTable(p);
   }
 
@@ -172,11 +170,10 @@ class HBaseLogger extends Logger {
     super.exec(o);
     if (output == Output.Other)
       return;
-
     Put p = new Put(Bytes.toBytes(createRequired("E")));
     p.add(cfall, Bytes.toBytes("sender"), hbEncoder.encodeString(o.sender.name));
     p.add(cfall, Bytes.toBytes("extId"), hbEncoder.encodeString(o.extId));
-
+    countExec++;
     putTable(p);
   }
 
@@ -185,8 +182,8 @@ class HBaseLogger extends Logger {
     super.order(o);
     if (output == Output.Other)
       return;
-
-    Put p = new Put(Bytes.toBytes(createRequired("O")));
+    long ts = System.currentTimeMillis(); //hack for update on scaledrisk (does not manage put then update with same ts)
+    Put p = new Put(Bytes.toBytes(createRequired("O")), ts);
     p.add(cfall, Bytes.toBytes("orderBookName"), hbEncoder.encodeString(o.obName));
     p.add(cfall, Bytes.toBytes("sender"), hbEncoder.encodeString(o.sender.name));
     p.add(cfall, Bytes.toBytes("extId"), hbEncoder.encodeString(o.extId));
@@ -201,6 +198,8 @@ class HBaseLogger extends Logger {
       p.add(cfall, Bytes.toBytes("price"), hbEncoder.encodeLong(lo.price));
       p.add(cfall, Bytes.toBytes("validity"), hbEncoder.encodeLong(lo.validity));
     }
+    countOrder++;
+//    System.out.println("OrderBook : " + o.obName + " sender : " + o.sender.name + " extId " + o.extId + " id : " + o.id);
 
     putTable(p);
   }
@@ -210,17 +209,17 @@ class HBaseLogger extends Logger {
     super.price(pr, bestAskPrice, bestBidPrice);
     if (output == Output.Other)
       return;
-
-    Put p = new Put(Bytes.toBytes(createRequired("P")));
-    p.add(cfall, Bytes.toBytes("obName"), hbEncoder.encodeString(pr.obName));
-    p.add(cfall, Bytes.toBytes("price"), hbEncoder.encodeLong(pr.price));
-    p.add(cfall, Bytes.toBytes("executedQuty"), hbEncoder.encodeInt(pr.quantity));
-    p.add(cfall, Bytes.toBytes("dir"), hbEncoder.encodeChar(pr.dir));
-    p.add(cfall, Bytes.toBytes("order1"), hbEncoder.encodeString(pr.extId1));
-    p.add(cfall, Bytes.toBytes("order2"), hbEncoder.encodeString(pr.extId2));
-    p.add(cfall, Bytes.toBytes("bestask"), hbEncoder.encodeLong(bestAskPrice));
-    p.add(cfall, Bytes.toBytes("bestbid"), hbEncoder.encodeLong(bestBidPrice));
-    p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp));
+    long ts = System.currentTimeMillis() + 2L; //hack for update on scaledrisk (does not manage put then update with same ts)
+    Put p = new Put(Bytes.toBytes(createRequired("P")), ts);
+    p.add(cfall, Bytes.toBytes("obName"), ts, hbEncoder.encodeString(pr.obName));
+    p.add(cfall, Bytes.toBytes("price"), ts, hbEncoder.encodeLong(pr.price));
+    p.add(cfall, Bytes.toBytes("executedQuty"), ts, hbEncoder.encodeInt(pr.quantity));
+    p.add(cfall, Bytes.toBytes("dir"), ts, hbEncoder.encodeChar(pr.dir));
+    p.add(cfall, Bytes.toBytes("order1"), ts, hbEncoder.encodeString(pr.extId1));
+    p.add(cfall, Bytes.toBytes("order2"), ts, hbEncoder.encodeString(pr.extId2));
+    p.add(cfall, Bytes.toBytes("bestask"), ts, hbEncoder.encodeLong(bestAskPrice));
+    p.add(cfall, Bytes.toBytes("bestbid"), ts, hbEncoder.encodeLong(bestBidPrice));
+    p.add(cfall, Bytes.toBytes("timestamp"), ts, hbEncoder.encodeLong((pr.timestamp > 0 ? pr.timestamp : ts)));
 
     putTable(p);
   }
@@ -292,6 +291,8 @@ class HBaseLogger extends Logger {
 
   private void flushPuts() {
     try {
+      LOGGER.log(Level.INFO, "Flushing... total order sent : " + countOrder +
+          " - total exec sent : " + countExec + " - sum = " + (countOrder + countExec));
       table.flushCommits();
     } catch (InterruptedIOException e) {
       LOGGER.log(Level.SEVERE, "Could not flush table", e);

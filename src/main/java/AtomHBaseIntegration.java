@@ -1,5 +1,6 @@
 import v13.Day;
 import v13.MonothreadedSimulation;
+import v13.MultithreadedSimulation;
 import v13.Simulation;
 import v13.agents.ZIT;
 
@@ -40,12 +41,13 @@ public class AtomHBaseIntegration {
     String cfName = System.getProperty("hbase.cf", "cf");
     boolean outHbase = System.getProperty("simul.output.hbase", "true").equals("true");
     String outFile = System.getProperty("simul.output.file", "");
-    boolean outSystem = System.getProperty("simul.output.standard", "true").equals("true");
+    boolean outSystem = System.getProperty("simul.output.standard", "false").equals("false");
 
     // How long
     long startTime = System.currentTimeMillis();
 
     // Create simulator with custom logger
+//    Simulation sim = new MultithreadedSimulation();
     Simulation sim = new MonothreadedSimulation();
     HBaseLogger logger = null;
 
@@ -76,19 +78,20 @@ public class AtomHBaseIntegration {
 
     // Create Agents and Order book to MarketMaker depending properties
     boolean marketmaker = System.getProperty("atom.marketmaker", "true").equals("true");
+    int marketmakerQuantity = marketmaker ? Integer.parseInt(System.getProperty("atom.marketmaker.quantity", "1")) : 0;
+
     for (String agent : agents)
       sim.addNewAgent(new ZIT(agent, Integer.parseInt(System.getProperty("simul. .cash", "0")),
           Integer.parseInt(System.getProperty("simul.agent.minprice", "10000")),
           Integer.parseInt(System.getProperty("simul.agent.maxprice", "20000")),
           Integer.parseInt(System.getProperty("simul.agent.minquantity", "10")),
           Integer.parseInt(System.getProperty("simul.agent.maxquantity", "50"))));
-    for (String ob : orderBooks) {
+    for (int i = 0 ; i< orderBooks.size(); i++) {
       if (marketmaker)
-        sim.addNewMarketMaker(ob);
-      else
-        sim.addNewOrderBook(ob);
+        sim.addNewMarketMaker(orderBooks.get(i) + "" + ((i % marketmakerQuantity) + 1));
+//      else
+        sim.addNewOrderBook(orderBooks.get(i));
     }
-
     LOGGER.log(Level.INFO, "Launching simulation");
 
     sim.run(Day.createEuroNEXT(Integer.parseInt(System.getProperty("simul.tick.opening", "0")),
@@ -106,7 +109,6 @@ public class AtomHBaseIntegration {
       LOGGER.log(Level.SEVERE, "Could not close logger", e);
       return;
     }
-
 
     long estimatedTime = System.currentTimeMillis() - startTime;
     LOGGER.info("Elapsed time: " + estimatedTime / 1000 + "s");
