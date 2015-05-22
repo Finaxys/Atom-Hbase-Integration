@@ -78,7 +78,6 @@ public class AtomHBaseIntegration {
 
     // Create Agents and Order book to MarketMaker depending properties
     boolean marketmaker = System.getProperty("atom.marketmaker", "true").equals("true");
-    int marketmakerQuantity = marketmaker ? Integer.parseInt(System.getProperty("atom.marketmaker.quantity", "1")) : 0;
 
     for (String agent : agents)
       sim.addNewAgent(new ZIT(agent, Integer.parseInt(System.getProperty("simul. .cash", "0")),
@@ -86,11 +85,11 @@ public class AtomHBaseIntegration {
           Integer.parseInt(System.getProperty("simul.agent.maxprice", "20000")),
           Integer.parseInt(System.getProperty("simul.agent.minquantity", "10")),
           Integer.parseInt(System.getProperty("simul.agent.maxquantity", "50"))));
-    for (int i = 0 ; i< orderBooks.size(); i++) {
+    for (String orderBook :  orderBooks) {
       if (marketmaker)
-        sim.addNewMarketMaker(orderBooks.get(i) + "" + ((i % marketmakerQuantity) + 1));
-//      else
-        sim.addNewOrderBook(orderBooks.get(i));
+        sim.addNewMarketMaker(orderBook);
+      else
+        sim.addNewOrderBook(orderBook);
     }
     LOGGER.log(Level.INFO, "Launching simulation");
 
