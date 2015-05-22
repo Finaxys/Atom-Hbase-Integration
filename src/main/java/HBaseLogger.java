@@ -159,8 +159,8 @@ class HBaseLogger extends Logger {
     p.add(cfall, Bytes.toBytes("executed"), hbEncoder.encodeInt(pr.quantity));
     p.add(cfall, Bytes.toBytes("price"), hbEncoder.encodeLong(pr.price));
     if (o.getClass().equals(LimitOrder.class)) {
-      p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeInt(((LimitOrder)o).direction));
-      p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp));
+      p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(((LimitOrder)o).direction));
+      p.add(cfall, Bytes.toBytes("tenor"), hbEncoder.encodeLong(pr.timestamp));
     }
     putTable(p);
   }

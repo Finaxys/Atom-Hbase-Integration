@@ -1,6 +1,7 @@
 import com.sun.istack.NotNull;
 import org.apache.hadoop.hbase.types.DataType;
 import org.apache.hadoop.hbase.types.OrderedBlobVar;
+import org.apache.hadoop.hbase.types.RawDouble;
 import org.apache.hadoop.hbase.types.RawInteger;
 import org.apache.hadoop.hbase.types.RawLong;
 import org.apache.hadoop.hbase.types.RawStringTerminated;
@@ -11,6 +12,7 @@ public class HBaseDataTypeEncoder {
   private final DataType<String> strDataType = new RawStringTerminated("\0");
   private final DataType<Integer> intDataType = new RawInteger();
   private final DataType<Long> longDataType = new RawLong();
+  private final DataType<Double> doubleDataType = new RawDouble();
   private final DataType<byte[]> charType = OrderedBlobVar.ASCENDING;
 
   public byte[] encodeString(@NotNull String value) {
@@ -23,6 +25,11 @@ public class HBaseDataTypeEncoder {
 
   public byte[] encodeLong(long value) {
     return encode(longDataType, value);
+
+  }
+
+  public byte[] encodeDouble(@NotNull Number value) {
+    return encode(doubleDataType, value.doubleValue());
 
   }
 
