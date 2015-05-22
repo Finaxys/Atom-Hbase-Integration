@@ -49,24 +49,26 @@ class HBaseLogger extends Logger {
 
   private byte[] cfall;
 
+  private final int dayGap;
   private long stackedPuts = 0;
   private long flushedPuts = 0;
   private boolean autoflush;
   private long stackPuts;
 
-  public HBaseLogger(Output output, String filename, String tableName, String cfName) throws Exception {
+  public HBaseLogger(Output output, String filename, String tableName, String cfName, int dayGap) throws Exception {
     super(filename);
-
+    this.dayGap = dayGap;
     init(output, tableName, cfName);
   }
 
-  public HBaseLogger(Output output, PrintStream o, String tableName, String cfName) throws Exception {
+  public HBaseLogger(Output output, PrintStream o, String tableName, String cfName, int dayGap) throws Exception {
     super(o);
-
+    this.dayGap = dayGap;
     init(output, tableName, cfName);
   }
 
-  public HBaseLogger(String tableName, String cfName) throws Exception {
+  public HBaseLogger(String tableName, String cfName, int dayGap) throws Exception {
+    this.dayGap = dayGap;
     init(Output.HBase, tableName, cfName);
   }
 
@@ -159,8 +161,8 @@ class HBaseLogger extends Logger {
     p.add(cfall, Bytes.toBytes("executed"), hbEncoder.encodeInt(pr.quantity));
     p.add(cfall, Bytes.toBytes("price"), hbEncoder.encodeLong(pr.price));
     if (o.getClass().equals(LimitOrder.class)) {
-      p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(((LimitOrder)o).direction));
-      p.add(cfall, Bytes.toBytes("tenor"), hbEncoder.encodeLong(pr.timestamp));
+      p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(((LimitOrder) o).direction));
+      p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp));
     }
     putTable(p);
   }
@@ -233,7 +235,7 @@ class HBaseLogger extends Logger {
     for (OrderBook ob : orderbooks) {
       Put p = new Put(Bytes.toBytes(createRequired("D")));
 
-      p.add(cfall, Bytes.toBytes("NumDay"), hbEncoder.encodeInt(nbDays));
+      p.add(cfall, Bytes.toBytes("NumDay"), hbEncoder.encodeInt(nbDays + dayGap));
       p.add(cfall, Bytes.toBytes("orderBookName"), hbEncoder.encodeString(ob.obName));
       p.add(cfall, Bytes.toBytes("FirstFixedPrice"), hbEncoder.encodeLong(ob.firstPriceOfDay));
       p.add(cfall, Bytes.toBytes("LowestPrice"), hbEncoder.encodeLong(ob.lowestPriceOfDay));
@@ -257,17 +259,18 @@ class HBaseLogger extends Logger {
     lastTickDay = day;
     for (OrderBook ob : orderbooks) {
       Put p = new Put(Bytes.toBytes(createRequired("T")));
-      p.add(cfall, Bytes.toBytes("numTick"), hbEncoder.encodeInt(day.currentPeriod));
+      p.add(cfall, Bytes.toBytes("numTick"), hbEncoder.encodeInt(day.currentTick()));
+      p.add(cfall, Bytes.toBytes("numDay"), hbEncoder.encodeInt(day.number + dayGap));
       p.add(cfall, Bytes.toBytes("orderBookName"), hbEncoder.encodeString(ob.obName));
 
       if (!ob.ask.isEmpty())
-        p.add(cfall, Bytes.toBytes("bestask"), hbEncoder.encodeLong(ob.ask.last().price));
+        p.add(cfall, Bytes.toBytes("bestAsk"), hbEncoder.encodeLong(ob.ask.last().price));
 
       if (!ob.bid.isEmpty())
-        p.add(cfall, Bytes.toBytes("bestbid"), hbEncoder.encodeLong(ob.bid.last().price));
+        p.add(cfall, Bytes.toBytes("bestBid"), hbEncoder.encodeLong(ob.bid.last().price));
 
       if (ob.lastFixedPrice != null)
-        p.add(cfall, Bytes.toBytes("lastPrice"), hbEncoder.encodeLong(ob.lastFixedPrice.price));
+        p.add(cfall, Bytes.toBytes("lastFixedPrice"), hbEncoder.encodeLong(ob.lastFixedPrice.price));
 
       putTable(p);
     }

@@ -1,6 +1,5 @@
 import v13.Day;
 import v13.MonothreadedSimulation;
-import v13.MultithreadedSimulation;
 import v13.Simulation;
 import v13.agents.ZIT;
 
@@ -43,6 +42,7 @@ public class AtomHBaseIntegration {
     String outFile = System.getProperty("simul.output.file", "");
     boolean outSystem = System.getProperty("simul.output.standard", "false").equals("false");
 
+    int dayGap = Integer.parseInt(System.getProperty("simul.day.startDay", "1")) - 1;
     // How long
     long startTime = System.currentTimeMillis();
 
@@ -54,15 +54,15 @@ public class AtomHBaseIntegration {
     try {
       if (outHbase) {
         if (outSystem)
-          logger = new HBaseLogger(Output.Both, System.out, tableName, cfName);
+          logger = new HBaseLogger(Output.Both, System.out, tableName, cfName, dayGap);
         else if (!outFile.equals(""))
-          logger = new HBaseLogger(Output.Both, outFile, tableName, cfName);
+          logger = new HBaseLogger(Output.Both, outFile, tableName, cfName, dayGap);
         else
-          logger = new HBaseLogger(tableName, cfName);
+          logger = new HBaseLogger(tableName, cfName, dayGap);
       } else if (outSystem)
-        logger = new HBaseLogger(Output.Other, System.out, tableName, cfName);
+        logger = new HBaseLogger(Output.Other, System.out, tableName, cfName, dayGap);
       else if (!outFile.equals(""))
-        logger = new HBaseLogger(Output.Other, outFile, tableName, cfName);
+        logger = new HBaseLogger(Output.Other, outFile, tableName, cfName, dayGap);
       else {
         LOGGER.log(Level.SEVERE, "Config file must have at least one output");
         return;
@@ -85,13 +85,14 @@ public class AtomHBaseIntegration {
           Integer.parseInt(System.getProperty("simul.agent.maxprice", "20000")),
           Integer.parseInt(System.getProperty("simul.agent.minquantity", "10")),
           Integer.parseInt(System.getProperty("simul.agent.maxquantity", "50"))));
-    for (String orderBook :  orderBooks) {
+    for (String orderBook : orderBooks) {
       if (marketmaker)
         sim.addNewMarketMaker(orderBook);
       else
         sim.addNewOrderBook(orderBook);
     }
     LOGGER.log(Level.INFO, "Launching simulation");
+    sim.currentDay = Integer.parseInt(System.getProperty("simul.startDay", "1"));
 
     sim.run(Day.createEuroNEXT(Integer.parseInt(System.getProperty("simul.tick.opening", "0")),
             Integer.parseInt(System.getProperty("simul.tick.continuous", "10")),
