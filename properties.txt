@@ -1,7 +1,7 @@
-simul.day.startDay=3
+simul.day.startDay=1
 simul.days=1
 simul.tick.opening=1
-simul.tick.continuous=12
+simul.tick.continuous=1200
 simul.tick.closing=0
 simul.output.file=/home/romanwlm/outputAtom.out
 simul.output.hbase=true

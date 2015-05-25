@@ -10,7 +10,7 @@ public class AgentReferentialLine {
   private final boolean isMarketMaker;
   private final String details = "No details available";
 
-  public AgentReferentialLine(int agentRefId, String orderBookName, String agentName) {
+  public AgentReferentialLine(int agentRefId,@NotNull String orderBookName,@NotNull String agentName) {
     this.agentRefId = agentRefId;
     this.orderBookName = orderBookName;
     this.agentName = agentName;

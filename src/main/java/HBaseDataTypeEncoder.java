@@ -17,28 +17,33 @@ public class HBaseDataTypeEncoder {
   private final DataType<byte[]> charType = OrderedBlobVar.ASCENDING;
   private final DataType<Byte> boolDataType = new RawByte();
 
+  @NotNull
   public byte[] encodeString(@NotNull String value) {
     return encode(strDataType, value);
   }
 
+  @NotNull
   public byte[] encodeInt(int value) {
     return encode(intDataType, value);
   }
 
+  @NotNull
   public byte[] encodeBoolean(boolean value) {
     return encode(boolDataType, (byte) (value ? 1 : 0));
   }
 
+  @NotNull
   public byte[] encodeLong(long value) {
     return encode(longDataType, value);
-
   }
 
+  @NotNull
   public byte[] encodeDouble(@NotNull Number value) {
     return encode(doubleDataType, value.doubleValue());
 
   }
 
+  @NotNull
   public byte[] encodeChar(@NotNull char value) {
     return encode(charType, charToBytes(value));
   }
@@ -57,6 +62,7 @@ public class HBaseDataTypeEncoder {
     return b;
   }
 
+  @NotNull
   private <T> byte[] encode(@NotNull DataType<T> dt, @NotNull T value) {
     SimplePositionedByteRange sbpr = new SimplePositionedByteRange(dt.encodedLength(value));
     dt.encode(sbpr, value);

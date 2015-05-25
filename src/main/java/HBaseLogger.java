@@ -1,3 +1,4 @@
+import com.sun.istack.NotNull;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
@@ -5,7 +6,6 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MasterNotRunningException;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.ZooKeeperConnectionException;
-import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.client.HConnectionManager;
@@ -57,24 +57,28 @@ class HBaseLogger extends Logger {
   private boolean autoflush;
   private long stackPuts;
 
-  public HBaseLogger(Output output, String filename, String tableName, String cfName, int dayGap) throws Exception {
+  public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
+                     @NotNull String cfName, int dayGap) throws Exception {
     super(filename);
     this.dayGap = dayGap;
     init(output, tableName, cfName);
   }
 
-  public HBaseLogger(Output output, PrintStream o, String tableName, String cfName, int dayGap) throws Exception {
+  public HBaseLogger(@NotNull Output output, @NotNull PrintStream o, @NotNull String tableName,
+                     @NotNull String cfName, int dayGap) throws Exception {
     super(o);
     this.dayGap = dayGap;
     init(output, tableName, cfName);
   }
 
-  public HBaseLogger(String tableName, String cfName, int dayGap) throws Exception {
+  public HBaseLogger(@NotNull String tableName, @NotNull String cfName, int dayGap) throws Exception {
     this.dayGap = dayGap;
     init(Output.HBase, tableName, cfName);
   }
 
-  public void init(Output output, String tableName, String cfName) throws Exception {
+  public void init(@NotNull Output output, @NotNull String tableName, @NotNull String cfName) throws Exception {
+    assert !tableName.isEmpty();
+    assert !cfName.isEmpty();
     cfall = Bytes.toBytes(cfName);
     this.output = output;
 
@@ -140,7 +144,7 @@ class HBaseLogger extends Logger {
     try {
       LOGGER.log(Level.INFO, "Getting table information");
       table = new HTable(conf, tableName);
-//            AutoFlushing
+      // AutoFlushing
       table.setAutoFlushTo(autoflush);
     } catch (IOException e) {
       LOGGER.log(Level.SEVERE, "Could not get table " + tableName, e);
@@ -150,14 +154,11 @@ class HBaseLogger extends Logger {
     LOGGER.log(Level.INFO, "Configuration completed");
   }
 
-  public void agentReferential(List<AgentReferentialLine> referencial) throws IOException {
+  public void agentReferential(@NotNull List<AgentReferentialLine> referencial) throws IOException {
+    assert !referencial.isEmpty();
     for (AgentReferentialLine agent : referencial) {
       Put p = agent.toPut(hbEncoder, cfall, System.currentTimeMillis());
-//      if (table.exists(new Get(p.getRow()))) {
-//        continue;
-//      } else {
-        table.put(p);
-//      }
+      table.put(p);
     }
     table.flushCommits();
   }
@@ -290,7 +291,7 @@ class HBaseLogger extends Logger {
     }
   }
 
-  private void putTable(Put p) {
+  private void putTable(@NotNull Put p) {
     try {
       table.put(p);
       ++stackedPuts;
@@ -338,7 +339,8 @@ class HBaseLogger extends Logger {
     LOGGER.log(Level.INFO, "Closing table with " + (flushedPuts + stackedPuts) + " puts");
   }
 
-  private String createRequired(String name) {
+  @NotNull
+  private String createRequired(@NotNull String name) {
     String required = "";
     required += String.format("%010d", idTrace.incrementAndGet()) + name;
     return required;
