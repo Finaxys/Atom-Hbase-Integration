@@ -5,6 +5,7 @@ import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.MasterNotRunningException;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.ZooKeeperConnectionException;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.client.HConnectionManager;
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
@@ -146,6 +148,18 @@ class HBaseLogger extends Logger {
     }
 
     LOGGER.log(Level.INFO, "Configuration completed");
+  }
+
+  public void agentReferential(List<AgentReferentialLine> referencial) throws IOException {
+    for (AgentReferentialLine agent : referencial) {
+      Put p = agent.toPut(hbEncoder, cfall, System.currentTimeMillis());
+//      if (table.exists(new Get(p.getRow()))) {
+//        continue;
+//      } else {
+        table.put(p);
+//      }
+    }
+    table.flushCommits();
   }
 
   @Override

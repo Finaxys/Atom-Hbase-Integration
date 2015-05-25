@@ -5,6 +5,7 @@ import v13.agents.ZIT;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -85,12 +86,29 @@ public class AtomHBaseIntegration {
           Integer.parseInt(System.getProperty("simul.agent.maxprice", "20000")),
           Integer.parseInt(System.getProperty("simul.agent.minquantity", "10")),
           Integer.parseInt(System.getProperty("simul.agent.maxquantity", "50"))));
-    for (String orderBook : orderBooks) {
-      if (marketmaker)
-        sim.addNewMarketMaker(orderBook);
-      else
-        sim.addNewOrderBook(orderBook);
+
+    List<AgentReferentialLine> agLines = new ArrayList<AgentReferentialLine>();
+    int idCount = 0;
+
+    for (String agent : agents) {
+      for (String orderBook : orderBooks) {
+        agLines.add(new AgentReferentialLine(++idCount, orderBook, agent));
+      }
     }
+
+    for (String orderBook : orderBooks) {
+      if (marketmaker) {
+        agLines.add(new AgentReferentialLine(++idCount, orderBook, "mm"));
+        sim.addNewMarketMaker(orderBook);
+      } else {
+        sim.addNewOrderBook(orderBook);
+      }
+    }
+    LOGGER.log(Level.INFO, Arrays.toString(agLines.toArray(new AgentReferentialLine[agLines.size()])));
+    LOGGER.log(Level.INFO, "Is sending agent referential...");
+    //Send agent referential
+    logger.agentReferential(agLines);
+
     LOGGER.log(Level.INFO, "Launching simulation");
     sim.currentDay = Integer.parseInt(System.getProperty("simul.startDay", "1"));
 
@@ -132,4 +150,5 @@ public class AtomHBaseIntegration {
       throw new Exception("agents/orderbooks");
     }
   }
+
 }

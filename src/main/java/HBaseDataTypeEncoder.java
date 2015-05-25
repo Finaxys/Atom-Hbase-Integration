@@ -1,6 +1,7 @@
 import com.sun.istack.NotNull;
 import org.apache.hadoop.hbase.types.DataType;
 import org.apache.hadoop.hbase.types.OrderedBlobVar;
+import org.apache.hadoop.hbase.types.RawByte;
 import org.apache.hadoop.hbase.types.RawDouble;
 import org.apache.hadoop.hbase.types.RawInteger;
 import org.apache.hadoop.hbase.types.RawLong;
@@ -14,6 +15,7 @@ public class HBaseDataTypeEncoder {
   private final DataType<Long> longDataType = new RawLong();
   private final DataType<Double> doubleDataType = new RawDouble();
   private final DataType<byte[]> charType = OrderedBlobVar.ASCENDING;
+  private final DataType<Byte> boolDataType = new RawByte();
 
   public byte[] encodeString(@NotNull String value) {
     return encode(strDataType, value);
@@ -21,6 +23,10 @@ public class HBaseDataTypeEncoder {
 
   public byte[] encodeInt(int value) {
     return encode(intDataType, value);
+  }
+
+  public byte[] encodeBoolean(boolean value) {
+    return encode(boolDataType, (byte) (value ? 1 : 0));
   }
 
   public byte[] encodeLong(long value) {
