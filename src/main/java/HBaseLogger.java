@@ -178,6 +178,8 @@ class HBaseLogger extends Logger {
     if (o.getClass().equals(LimitOrder.class)) {
       p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(((LimitOrder) o).direction));
       p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp));
+      p.add(cfall, Bytes.toBytes("orderExtId"), hbEncoder.encodeString(o.extId));
+
     }
     putTable(p);
   }
