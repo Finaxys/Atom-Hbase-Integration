@@ -212,9 +212,11 @@ class HBaseLogger extends Logger
         {
             p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(((LimitOrder) o).direction));
             p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp));
+            p.add(cfall, Bytes.toBytes("orderExtId"), hbEncoder.encodeString(o.extId));
         }
         putTable(p);
     }
+
 
     @Override
     public void exec(Order o)
