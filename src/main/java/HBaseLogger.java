@@ -207,12 +207,12 @@ class HBaseLogger extends Logger {
     p.add(cfall, Bytes.toBytes("sender"), hbEncoder.encodeString(o.sender.name));
     p.add(cfall, Bytes.toBytes("extId"), hbEncoder.encodeString(o.extId));
     p.add(cfall, Bytes.toBytes("type"), hbEncoder.encodeChar(o.type));
-    p.add(cfall, Bytes.toBytes("id"), hbEncoder.encodeLong(o.id));
+    p.add(cfall, Bytes.toBytes("id"), hbEncoder.encodeString(String.valueOf(o.id)));
     p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(o.timestamp));
 
     if (o.getClass().equals(LimitOrder.class)) {
       LimitOrder lo = (LimitOrder) o;
-      p.add(cfall, Bytes.toBytes("quantity"), hbEncoder.encodeInt(lo.quantity));
+      p.add(cfall, Bytes.toBytes("quantity"), hbEncoder.encodeInt(lo.initQuty));
       p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(lo.direction));
       p.add(cfall, Bytes.toBytes("price"), hbEncoder.encodeLong(lo.price));
       p.add(cfall, Bytes.toBytes("validity"), hbEncoder.encodeLong(lo.validity));
