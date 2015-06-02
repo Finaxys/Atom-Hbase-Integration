@@ -63,7 +63,9 @@ class HBaseLogger extends Logger
     private long stackPuts;
 
     public static int currentTick = 1;
-    //public static int currentDay = 1;
+    public static int currentDay = 0;
+    public static long nbMillisecDay = 86400000;
+    public static long nbMillsecHour = 3600000;
 
     public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
                        @NotNull String cfName, int dayGap) throws Exception
@@ -211,7 +213,7 @@ class HBaseLogger extends Logger
         if (o.getClass().equals(LimitOrder.class))
         {
             p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(((LimitOrder) o).direction));
-            p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp));
+            p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(timeStampCalculation())); //pr.timestamp
             p.add(cfall, Bytes.toBytes("orderExtId"), hbEncoder.encodeString(o.extId));
         }
         putTable(p);
@@ -244,12 +246,12 @@ class HBaseLogger extends Logger
         p.add(cfall, Bytes.toBytes("extId"), hbEncoder.encodeString(o.extId));
         p.add(cfall, Bytes.toBytes("type"), hbEncoder.encodeChar(o.type));
         p.add(cfall, Bytes.toBytes("id"), hbEncoder.encodeLong(o.id));
-        p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(timeStampCalculation()));
+        p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(timeStampCalculation())); //o.timestamp
 
         Date d = new Date(timeStampCalculation());
         //LOGGER.info("timestamp = " + timeStampCalculation());
         //LOGGER.info("timestamp encoder = " + hbEncoder.encodeLong(o.timestamp));
-        LOGGER.info("timestamp date = " + d + " current tick = " + currentTick /*+ " current day = " + currentDay*/);
+        LOGGER.info("timestamp date = " + d + " current tick = " + currentTick + " current day = " + currentDay);
 
 
         if (o.getClass().equals(LimitOrder.class))
@@ -284,7 +286,7 @@ class HBaseLogger extends Logger
         p.add(cfall, Bytes.toBytes("order2"), ts, hbEncoder.encodeString(pr.extId2));
         p.add(cfall, Bytes.toBytes("bestask"), ts, hbEncoder.encodeLong(bestAskPrice));
         p.add(cfall, Bytes.toBytes("bestbid"), ts, hbEncoder.encodeLong(bestBidPrice));
-        p.add(cfall, Bytes.toBytes("timestamp"), ts, hbEncoder.encodeLong((pr.timestamp > 0 ? pr.timestamp : ts)));
+        p.add(cfall, Bytes.toBytes("timestamp"), ts, hbEncoder.encodeLong((timeStampCalculation()))); //pr.timestamp > 0 ? pr.timestamp : ts
 
         putTable(p);
     }
@@ -298,10 +300,10 @@ class HBaseLogger extends Logger
 
         for (OrderBook ob : orderbooks)
         {
-            LOGGER.info("current day = " + nbDays);
+            LOGGER.info("day en cours = " + nbDays);
             //LOGGER.info("cureent day + dayGap = " + nbDays + dayGap);
 
-            //currentDay = nbDays;
+            currentDay = nbDays;
 
             Put p = new Put(Bytes.toBytes(createRequired("D")));
             p.add(cfall, Bytes.toBytes("NumDay"), hbEncoder.encodeInt(nbDays + dayGap));
@@ -465,25 +467,31 @@ class HBaseLogger extends Logger
         //LOGGER.info("secs = " + openHoursToSeconds);
         //LOGGER.info("secs = " + closeHoursToSeconds);
 
+
         //Take the period
         String nbTickMaxStr = System.getProperty("simul.tick.continuous");
         //LOGGER.info("simul.tick.continuous = " + nbTickMaxStr);
         int nbTickMax = Integer.parseInt(nbTickMaxStr);
 
-        //calcul du ratio, cad le nombre de secs a jouter à chaque up du tick
+
         long ratio = (closeHoursToSeconds - openHoursToSeconds) / nbTickMax;
         //LOGGER.info("ratio = " + ratio);
 
         long timestamp;
 
-        timestamp =  dateToSeconds + openHoursToSeconds + currentTick * ratio;
-
-        //toDo find solution for multiple days and test everything + remove comments and clean code
-
-        /*if (currentDay > 1)
-            timestamp = dateToSeconds + (currentDay - 1) * 86400 + openHoursToSeconds + currentTick * ratio;*/
-        //si day > 1
-        //ajouter nombre de secs dans un jour à partir de la base (dateToSeconds)
+        //last tick is made current day + 1
+        if (currentTick == nbTickMax)
+        {
+            if (currentDay > 0)
+                timestamp = nbMillsecHour + dateToSeconds + (currentDay - 1) * nbMillisecDay + openHoursToSeconds + currentTick * ratio;
+            else
+            {
+                LOGGER.severe("Behavior not correct");
+                timestamp = nbMillsecHour + dateToSeconds + currentDay * nbMillisecDay + openHoursToSeconds + currentTick * ratio;
+            }
+        }
+        else
+            timestamp = nbMillsecHour + dateToSeconds + currentDay * nbMillisecDay + openHoursToSeconds + currentTick * ratio;
         return (timestamp);
     }
 }
