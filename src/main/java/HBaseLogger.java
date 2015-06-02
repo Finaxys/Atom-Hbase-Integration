@@ -27,6 +27,10 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.io.PrintStream;
 import java.net.MalformedURLException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -56,6 +60,11 @@ class HBaseLogger extends Logger {
   private long flushedPuts = 0;
   private boolean autoflush;
   private long stackPuts;
+
+  public static int currentTick = 1;
+  public static int currentDay = 0;
+  public static long nbMillisecDay = 86400000;
+  public static long nbMillsecHour = 3600000;
 
   public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
                      @NotNull String cfName, int dayGap) throws Exception {
@@ -177,12 +186,12 @@ class HBaseLogger extends Logger {
     p.add(cfall, Bytes.toBytes("price"), hbEncoder.encodeLong(pr.price));
     if (o.getClass().equals(LimitOrder.class)) {
       p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(((LimitOrder) o).direction));
-      p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp));
+      p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(timeStampCalculation())); //pr.timestamp
       p.add(cfall, Bytes.toBytes("orderExtId"), hbEncoder.encodeString(o.extId));
-
     }
     putTable(p);
   }
+
 
   @Override
   public void exec(Order o) {
@@ -207,19 +216,23 @@ class HBaseLogger extends Logger {
     p.add(cfall, Bytes.toBytes("sender"), hbEncoder.encodeString(o.sender.name));
     p.add(cfall, Bytes.toBytes("extId"), hbEncoder.encodeString(o.extId));
     p.add(cfall, Bytes.toBytes("type"), hbEncoder.encodeChar(o.type));
-    p.add(cfall, Bytes.toBytes("id"), hbEncoder.encodeString(String.valueOf(o.id)));
-    p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(o.timestamp));
+    p.add(cfall, Bytes.toBytes("id"), hbEncoder.encodeLong(o.id));
+    p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(timeStampCalculation())); //o.timestamp
+
+    Date d = new Date(timeStampCalculation());
+    //LOGGER.info("timestamp = " + timeStampCalculation());
+    //LOGGER.info("timestamp encoder = " + hbEncoder.encodeLong(o.timestamp));
+    LOGGER.info("timestamp date = " + d + " current tick = " + currentTick + " current day = " + currentDay);
+
 
     if (o.getClass().equals(LimitOrder.class)) {
       LimitOrder lo = (LimitOrder) o;
-      p.add(cfall, Bytes.toBytes("quantity"), hbEncoder.encodeInt(lo.initQuty));
+      p.add(cfall, Bytes.toBytes("quantity"), hbEncoder.encodeInt(lo.quantity));
       p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(lo.direction));
       p.add(cfall, Bytes.toBytes("price"), hbEncoder.encodeLong(lo.price));
       p.add(cfall, Bytes.toBytes("validity"), hbEncoder.encodeLong(lo.validity));
     }
     countOrder++;
-//    System.out.println("OrderBook : " + o.obName + " sender : " + o.sender.name + " extId " + o.extId + " id : " + o.id);
-
     putTable(p);
   }
 
@@ -238,7 +251,7 @@ class HBaseLogger extends Logger {
     p.add(cfall, Bytes.toBytes("order2"), ts, hbEncoder.encodeString(pr.extId2));
     p.add(cfall, Bytes.toBytes("bestask"), ts, hbEncoder.encodeLong(bestAskPrice));
     p.add(cfall, Bytes.toBytes("bestbid"), ts, hbEncoder.encodeLong(bestBidPrice));
-    p.add(cfall, Bytes.toBytes("timestamp"), ts, hbEncoder.encodeLong((pr.timestamp > 0 ? pr.timestamp : ts)));
+    p.add(cfall, Bytes.toBytes("timestamp"), ts, hbEncoder.encodeLong((timeStampCalculation()))); //pr.timestamp > 0 ? pr.timestamp : ts
 
     putTable(p);
   }
@@ -250,8 +263,12 @@ class HBaseLogger extends Logger {
       return;
 
     for (OrderBook ob : orderbooks) {
-      Put p = new Put(Bytes.toBytes(createRequired("D")));
+      LOGGER.info("day en cours = " + nbDays);
+      //LOGGER.info("cureent day + dayGap = " + nbDays + dayGap);
 
+      currentDay = nbDays;
+
+      Put p = new Put(Bytes.toBytes(createRequired("D")));
       p.add(cfall, Bytes.toBytes("NumDay"), hbEncoder.encodeInt(nbDays + dayGap));
       p.add(cfall, Bytes.toBytes("orderBookName"), hbEncoder.encodeString(ob.obName));
       p.add(cfall, Bytes.toBytes("FirstFixedPrice"), hbEncoder.encodeLong(ob.firstPriceOfDay));
@@ -275,11 +292,15 @@ class HBaseLogger extends Logger {
 
     lastTickDay = day;
     for (OrderBook ob : orderbooks) {
+      //LOGGER.info("day current tick = " + day.currentTick());
+      //LOGGER.info("day number + dayGap = " + day.number + dayGap);
+      currentTick = day.currentTick();
+      //tickCount =
+
       Put p = new Put(Bytes.toBytes(createRequired("T")));
       p.add(cfall, Bytes.toBytes("numTick"), hbEncoder.encodeInt(day.currentTick()));
       p.add(cfall, Bytes.toBytes("numDay"), hbEncoder.encodeInt(day.number + dayGap));
       p.add(cfall, Bytes.toBytes("orderBookName"), hbEncoder.encodeString(ob.obName));
-
       if (!ob.ask.isEmpty())
         p.add(cfall, Bytes.toBytes("bestAsk"), hbEncoder.encodeLong(ob.ask.last().price));
 
@@ -346,5 +367,65 @@ class HBaseLogger extends Logger {
     String required = "";
     required += String.format("%010d", idTrace.incrementAndGet()) + name;
     return required;
+  }
+
+  private long timeStampCalculation() {
+
+    //take the date
+    String dateBegin = System.getProperty("simul.time.startdate");
+    SimpleDateFormat formatter = new SimpleDateFormat("MM/dd/yyyy");
+    Date date = null;
+    long dateToSeconds = 0L;
+    try {
+      date = formatter.parse(dateBegin);
+      //LOGGER.info("date = " + date);
+      dateToSeconds = date.getTime();
+      //LOGGER.info("timestamp à partir du fichier de conf : " + dateToSeconds);
+    } catch (ParseException pe) {
+      pe.printStackTrace();
+    }
+
+    //take the hours
+    String openHourStr = System.getProperty("simul.time.openhour");
+    String closeHourStr = System.getProperty("simul.time.closehour");
+
+    DateFormat dateFormatter = new SimpleDateFormat("h:mm");
+    Date openHour = null;
+    Date closeHour = null;
+    try {
+      openHour = (Date) dateFormatter.parse(openHourStr);
+      closeHour = (Date) dateFormatter.parse(closeHourStr);
+    } catch (ParseException e) {
+      e.printStackTrace();
+    }
+    long openHoursToSeconds = openHour.getTime();
+    long closeHoursToSeconds = closeHour.getTime();
+
+    //LOGGER.info("secs = " + openHoursToSeconds);
+    //LOGGER.info("secs = " + closeHoursToSeconds);
+
+
+    //Take the period
+    String nbTickMaxStr = System.getProperty("simul.tick.continuous");
+    //LOGGER.info("simul.tick.continuous = " + nbTickMaxStr);
+    int nbTickMax = Integer.parseInt(nbTickMaxStr);
+
+
+    long ratio = (closeHoursToSeconds - openHoursToSeconds) / nbTickMax;
+    //LOGGER.info("ratio = " + ratio);
+
+    long timestamp;
+
+    //last tick is made current day + 1
+    if (currentTick == nbTickMax) {
+      if (currentDay > 0)
+        timestamp = nbMillsecHour + dateToSeconds + (currentDay - 1) * nbMillisecDay + openHoursToSeconds + currentTick * ratio;
+      else {
+        LOGGER.severe("Behavior not correct");
+        timestamp = nbMillsecHour + dateToSeconds + currentDay * nbMillisecDay + openHoursToSeconds + currentTick * ratio;
+      }
+    } else
+      timestamp = nbMillsecHour + dateToSeconds + currentDay * nbMillisecDay + openHoursToSeconds + currentTick * ratio;
+    return (timestamp);
   }
 }

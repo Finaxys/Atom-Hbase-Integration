@@ -5,10 +5,7 @@ import v13.agents.ZIT;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -43,7 +40,9 @@ public class AtomHBaseIntegration {
     String outFile = System.getProperty("simul.output.file", "");
     boolean outSystem = System.getProperty("simul.output.standard", "false").equals("false");
 
+
     int dayGap = Integer.parseInt(System.getProperty("simul.day.startDay", "1")) - 1;
+
     // How long
     long startTime = System.currentTimeMillis();
 
