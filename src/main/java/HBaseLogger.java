@@ -269,10 +269,6 @@ class HBaseLogger extends Logger
             p.add(cfall, Bytes.toBytes("validity"), hbEncoder.encodeLong(lo.validity));
         }
         countOrder++;
-
-
-//    System.out.println("OrderBook : " + o.obName + " sender : " + o.sender.name + " extId " + o.extId + " id : " + o.id);
-
         putTable(p);
     }
 

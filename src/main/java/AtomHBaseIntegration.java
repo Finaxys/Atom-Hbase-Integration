@@ -105,9 +105,10 @@ public class AtomHBaseIntegration {
     }
     LOGGER.log(Level.INFO, Arrays.toString(agLines.toArray(new AgentReferentialLine[agLines.size()])));
     LOGGER.log(Level.INFO, "Is sending agent referential...");
-    //Send agent referential
-    logger.agentReferential(agLines);
-
+    if (outHbase) {
+      //Send agent referential
+      logger.agentReferential(agLines);
+    }
     LOGGER.log(Level.INFO, "Launching simulation");
     sim.currentDay = Integer.parseInt(System.getProperty("simul.startDay", "1"));
 
