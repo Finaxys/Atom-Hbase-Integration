@@ -62,10 +62,15 @@ class HBaseLogger extends Logger
     private boolean autoflush;
     private long stackPuts;
 
-    public static int currentTick = 1;
-    public static int currentDay = 0;
-    public static long nbMillisecDay = 86400000;
-    public static long nbMillsecHour = 3600000;
+    private int nbTickMax;
+    private long dateToSeconds = 0L;
+    private long openHoursToSeconds;
+    private long ratio;
+    private long timestamp;
+    private static int currentTick = 1;
+    private static int currentDay = 0;
+    private static long nbMillisecDay = 86400000;
+    private static long nbMillsecHour = 3600000;
 
     public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
                        @NotNull String cfName, int dayGap) throws Exception
@@ -91,6 +96,7 @@ class HBaseLogger extends Logger
 
     public void init(@NotNull Output output, @NotNull String tableName, @NotNull String cfName) throws Exception
     {
+        loadConfigTimeStamp();
         assert !tableName.isEmpty();
         assert !cfName.isEmpty();
         cfall = Bytes.toBytes(cfName);
@@ -425,14 +431,13 @@ class HBaseLogger extends Logger
         return required;
     }
 
-    private long timeStampCalculation()
+    private void loadConfigTimeStamp()
     {
-
         //take the date
         String dateBegin = System.getProperty("simul.time.startdate");
         SimpleDateFormat formatter = new SimpleDateFormat("MM/dd/yyyy");
         Date date = null;
-        long dateToSeconds = 0L;
+
         try
         {
             date = formatter.parse(dateBegin);
@@ -461,24 +466,23 @@ class HBaseLogger extends Logger
         {
             e.printStackTrace();
         }
-        long openHoursToSeconds = openHour.getTime();
+        openHoursToSeconds = openHour.getTime();
         long closeHoursToSeconds = closeHour.getTime();
 
         //LOGGER.info("secs = " + openHoursToSeconds);
         //LOGGER.info("secs = " + closeHoursToSeconds);
 
-
         //Take the period
         String nbTickMaxStr = System.getProperty("simul.tick.continuous");
         //LOGGER.info("simul.tick.continuous = " + nbTickMaxStr);
-        int nbTickMax = Integer.parseInt(nbTickMaxStr);
+        nbTickMax = Integer.parseInt(nbTickMaxStr);
 
-
-        long ratio = (closeHoursToSeconds - openHoursToSeconds) / nbTickMax;
+        ratio = (closeHoursToSeconds - openHoursToSeconds) / nbTickMax;
         //LOGGER.info("ratio = " + ratio);
+    }
 
-        long timestamp;
-
+    private long timeStampCalculation()
+    {
         //last tick is made current day + 1
         if (currentTick == nbTickMax)
         {
