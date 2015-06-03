@@ -1,3 +1,5 @@
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.HConnectionManager;
 import v13.Day;
 import v13.MonothreadedSimulation;
 import v13.Simulation;
@@ -5,7 +7,10 @@ import v13.agents.ZIT;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -90,14 +95,13 @@ public class AtomHBaseIntegration {
     int idCount = 0;
 
     for (String agent : agents) {
-      for (String orderBook : orderBooks) {
-        agLines.add(new AgentReferentialLine(++idCount, orderBook, agent));
-      }
+      agLines.add(new AgentReferentialLine(++idCount, agent));
     }
-
+    if (marketmaker) {
+      agLines.add(new AgentReferentialLine(++idCount, "mm"));
+    }
     for (String orderBook : orderBooks) {
       if (marketmaker) {
-        agLines.add(new AgentReferentialLine(++idCount, orderBook, "mm"));
         sim.addNewMarketMaker(orderBook);
       } else {
         sim.addNewOrderBook(orderBook);
@@ -132,7 +136,7 @@ public class AtomHBaseIntegration {
     LOGGER.info("Elapsed time: " + estimatedTime / 1000 + "s");
   }
 
-  private static void getConfiguration() throws Exception {
+  public static void getConfiguration() throws Exception {
     FileInputStream propFile = new FileInputStream("properties.txt");
     Properties p = new Properties(System.getProperties());
     p.load(propFile);
