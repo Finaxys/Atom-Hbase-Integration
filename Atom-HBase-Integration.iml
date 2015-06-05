@@ -131,14 +131,6 @@
     <orderEntry type="library" name="Maven: org.apache.hadoop:hadoop-hdfs:2.4.0" level="project" />
     <orderEntry type="library" name="Maven: org.apache.hbase:hbase-hadoop-compat:test-jar:tests:0.98.11-hadoop2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.hbase:hbase-hadoop-compat:0.98.11-hadoop2" level="project" />
-    <orderEntry type="module-library">
-      <library name="Maven: atom:atom:1.0">
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/atom.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
+    <orderEntry type="library" name="Maven: atom:atom:1.0" level="project" />
   </component>
 </module>
