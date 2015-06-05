@@ -77,6 +77,7 @@ public class AtomHBaseIntegration
 
         // Get agents & orderbooks
         String obsym = System.getProperty("atom.orderbooks", "");
+        LOGGER.info("obsym = " + obsym);
         assert obsym != null;
         String agsym = System.getProperty("atom.agents", "");
         assert agsym != null;
