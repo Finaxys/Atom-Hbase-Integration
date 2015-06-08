@@ -1,3 +1,5 @@
+package com.finaxys;
+
 import com.sun.istack.NotNull;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -120,6 +122,8 @@ class HBaseLogger extends Logger
     public void init(@NotNull Output output, @NotNull String tableName, @NotNull String cfName, boolean createTableOnly) throws Exception
     {
         tsb = new TimeStampBuilder();
+        tsb.loadConfig();
+        tsb.init();
 
         assert !tableName.isEmpty();
         assert !cfName.isEmpty();
@@ -303,7 +307,6 @@ class HBaseLogger extends Logger
         //LOGGER.info("timestamp encoder = " + hbEncoder.encodeLong(o.timestamp));
         LOGGER.info("timestamp order date = " + d + " current tick = " + tsb.getCurrentTick() + " current day = " + tsb.getCurrentDay());
 
-
         if (o.getClass().equals(LimitOrder.class))
         {
             LimitOrder lo = (LimitOrder) o;
@@ -332,13 +335,12 @@ class HBaseLogger extends Logger
         p.add(cfall, Bytes.toBytes("order2"), ts, hbEncoder.encodeString(pr.extId2));
         p.add(cfall, Bytes.toBytes("bestask"), ts, hbEncoder.encodeLong(bestAskPrice));
         p.add(cfall, Bytes.toBytes("bestbid"), ts, hbEncoder.encodeLong(bestBidPrice));
-        p.add(cfall, Bytes.toBytes("timestamp"), ts, hbEncoder.encodeLong((tsb.nextTimeStamp()))); //pr.timestamp > 0 ? pr.timestamp : ts
+        p.add(cfall, Bytes.toBytes("timestamp"), ts, hbEncoder.encodeLong((pr.timestamp > 0 ? pr.timestamp : ts))); // tsb.nextTimeStamp()
 
-        Date d = new Date(tsb.getTimeStamp());
+       /* Date d = new Date(tsb.getTimeStamp());
         LOGGER.info("timestamp = " + tsb.getTimeStamp());
         //LOGGER.info("timestamp encoder = " + hbEncoder.encodeLong(o.timestamp));
-        LOGGER.info("timestamp price date = " + d + " current tick = " + tsb.getCurrentTick() + " current day = " + tsb.getCurrentDay());
-
+        LOGGER.info("timestamp price date = " + d + " current tick = " + tsb.getCurrentTick() + " current day = " + tsb.getCurrentDay());*/
 
         putTable(p);
     }
@@ -386,9 +388,9 @@ class HBaseLogger extends Logger
             //LOGGER.info("day current tick = " + day.currentTick());
             //LOGGER.info("day number + dayGap = " + day.number + dayGap);
             tsb.setCurrentTick(day.currentTick());
-            tsb.setRestRatio(0);
-            LOGGER.info("restratio day = " + tsb.getRestRatio());
-            //tickCount =
+            tsb.setCumulTimePerOrder(0);
+            LOGGER.info("cumulTimePerOder day = " + tsb.getCumulTimePerOrder());
+            tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
 
             Put p = new Put(Bytes.toBytes(createRequired("T")));
             p.add(cfall, Bytes.toBytes("numTick"), hbEncoder.encodeInt(day.currentTick()));

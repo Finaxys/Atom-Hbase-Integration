@@ -1,3 +1,5 @@
+package com.finaxys;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HConnectionManager;
 import v13.Day;
@@ -38,9 +40,13 @@ public class AtomHBaseIntegration
     private static boolean outSystem;
     private static int dayGap;
     private static long startTime;
-
     private static Simulation sim;
     private static HBaseLogger logger = null;
+
+    public static Simulation getSim()
+    {
+        return sim;
+    }
 
     // Main config for Atom
     public static void main(String args[]) throws IOException
@@ -149,6 +155,18 @@ public class AtomHBaseIntegration
 
     public static void run()
     {
+        initSim();
+
+        sim.run(Day.createEuroNEXT(Integer.parseInt(System.getProperty("simul.tick.opening", "0")),
+                        Integer.parseInt(System.getProperty("simul.tick.continuous", "10")),
+                        Integer.parseInt(System.getProperty("simul.tick.closing", "0"))),
+                Integer.parseInt(System.getProperty("simul.days", "1")));
+
+        closeSim();
+    }
+
+    public static void initSim()
+    {
         // Loading properties
         try
         {
@@ -218,12 +236,10 @@ public class AtomHBaseIntegration
         }
         LOGGER.log(Level.INFO, "Launching simulation");
         sim.currentDay = Integer.parseInt(System.getProperty("simul.startDay", "1"));
+    }
 
-        sim.run(Day.createEuroNEXT(Integer.parseInt(System.getProperty("simul.tick.opening", "0")),
-                        Integer.parseInt(System.getProperty("simul.tick.continuous", "10")),
-                        Integer.parseInt(System.getProperty("simul.tick.closing", "0"))),
-                Integer.parseInt(System.getProperty("simul.days", "1")));
-
+    public static void closeSim()
+    {
         LOGGER.log(Level.INFO, "Closing up");
 
         sim.market.close();
@@ -241,5 +257,4 @@ public class AtomHBaseIntegration
         long estimatedTime = System.currentTimeMillis() - startTime;
         LOGGER.info("Elapsed time: " + estimatedTime / 1000 + "s");
     }
-
 }
