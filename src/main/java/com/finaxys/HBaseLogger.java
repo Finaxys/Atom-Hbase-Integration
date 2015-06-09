@@ -388,8 +388,8 @@ class HBaseLogger extends Logger
             //LOGGER.info("day current tick = " + day.currentTick());
             //LOGGER.info("day number + dayGap = " + day.number + dayGap);
             tsb.setCurrentTick(day.currentTick());
-            tsb.setCumulTimePerOrder(0);
-            LOGGER.info("cumulTimePerOder day = " + tsb.getCumulTimePerOrder());
+            //tsb.setCumulTimePerOrder(0);
+            //LOGGER.info("cumulTimePerOder day = " + tsb.getCumulTimePerOrder());
             tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
 
             Put p = new Put(Bytes.toBytes(createRequired("T")));

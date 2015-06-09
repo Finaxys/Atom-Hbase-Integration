@@ -58,7 +58,7 @@ public class TimeStampBuilder
 
     public long getTimeStamp()
     {
-        return (this.timeStamp);
+        return this.timeStamp;
     }
 
     public void setTimeStamp(long timeStamp)
@@ -93,24 +93,39 @@ public class TimeStampBuilder
 
     public long baseTimeStampForCurrentTick()
     {
+        long baseTimeStampCurrentTick;
         if (currentTick == nbTickMax)
         {
-            timeStamp = nbMilliSecHour + dateToSeconds + (currentDay - 1) * nbMilliSecDay + openHoursToSeconds + currentTick * ratio;
+            baseTimeStampCurrentTick = nbMilliSecHour + dateToSeconds + (currentDay - 1) * nbMilliSecDay + openHoursToSeconds + currentTick * ratio;
         }
         else
         {
-            timeStamp = nbMilliSecHour + dateToSeconds + currentDay * nbMilliSecDay + openHoursToSeconds + currentTick * ratio;
+            baseTimeStampCurrentTick = nbMilliSecHour + dateToSeconds + currentDay * nbMilliSecDay + openHoursToSeconds + currentTick * ratio;
         }
-        return (timeStamp);
+        return (baseTimeStampCurrentTick);
+    }
+
+    public long baseTimeStampForNextTick()
+    {
+        long baseTimeStampNextTick;
+        if (currentTick == nbTickMax)
+        {
+            baseTimeStampNextTick = nbMilliSecHour + dateToSeconds + (currentDay - 1) * nbMilliSecDay + openHoursToSeconds + (currentTick + 1) * ratio;
+        }
+        else
+        {
+            baseTimeStampNextTick = nbMilliSecHour + dateToSeconds + currentDay * nbMilliSecDay + openHoursToSeconds + (currentTick + 1) * ratio;
+        }
+        return (baseTimeStampNextTick);
     }
 
     public long nextTimeStamp()
     {
-        cumulTimePerOrder += timePerOrder;
+        timeStamp += timePerOrder;
 
-        LOGGER.info("cumulTimePerOrder = " + cumulTimePerOrder);
+        //LOGGER.info("cumulTimePerOrder = " + cumulTimePerOrder);
 
-        timeStamp += cumulTimePerOrder;
+        //timeStamp += cumulTimePerOrder;
         return (timeStamp);
     }
 

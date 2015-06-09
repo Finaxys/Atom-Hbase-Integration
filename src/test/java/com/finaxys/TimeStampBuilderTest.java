@@ -24,14 +24,29 @@ public class TimeStampBuilderTest
     {
     }
 
+    public long callNextTimeStampXTime(long nb)
+    {
+        while (nb > 0)
+        {
+         tsb.nextTimeStamp();
+            nb--;
+        }
+        return tsb.getTimeStamp();
+    }
+
     @DataProvider
-    public Object[][] myDataProvider(){
+    public Object[][] myDataProvider()
+    {
         return new Object[][]{
                 {
                         tsb.baseTimeStampForCurrentTick() , tsb.getTimeStamp(),true
                 },
                 {
                         tsb.baseTimeStampForCurrentTick() + tsb.getCumulTimePerOrder(), tsb.nextTimeStamp(), true
+                },
+                {
+                        callNextTimeStampXTime(tsb.getNbMaxOrderPerTick()), tsb.baseTimeStampForNextTick(), false
+                        //le callnectimestampxtime ne doit pas etre supérieur au basetimestampnextick
                 }
         };
     }
@@ -40,6 +55,24 @@ public class TimeStampBuilderTest
 //    public void testSimple(String val1, String val2, boolean match){
 //        assertEquals(match, val1.equals(val2));
 //    }
+
+    @Test(dataProvider = "myDataProvider")
+    public void timestampFor20Ticks(long expected, long received, boolean match) throws Exception
+    {
+        //loadConfig
+        String dateBegin = "09/13/1986";
+        String openHourStr = "9:00";
+        String closeHourStr = "17:30";
+        String nbTickMaxStr = "20";
+        tsb.convertFromString(dateBegin, openHourStr, closeHourStr, nbTickMaxStr);
+        tsb.init();
+        tsb.baseTimeStampForCurrentTick();
+        assertEquals(match, expected == received);
+
+
+
+
+    }
 
     @Test(dataProvider = "myDataProvider")
     public void timestampFor30kTicks(long expected, long received, boolean match) throws Exception
