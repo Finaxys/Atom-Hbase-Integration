@@ -20,7 +20,6 @@ public class TimeStampBuilder
     private long closeHoursToSeconds;
     private long ratio;
     private long timeStamp;
-    private long cumulTimePerOrder = 0;
     private long nbMaxOrderPerTick;
     private long timePerOrder;
     private static final long nbMilliSecDay = 86400000;
@@ -46,16 +45,6 @@ public class TimeStampBuilder
         this.currentDay = currentDay;
     }
 
-    public long getCumulTimePerOrder()
-    {
-        return cumulTimePerOrder;
-    }
-
-    public void setCumulTimePerOrder(long cumulTimePerOrder)
-    {
-        this.cumulTimePerOrder = cumulTimePerOrder;
-    }
-
     public long getTimeStamp()
     {
         return this.timeStamp;
@@ -64,6 +53,11 @@ public class TimeStampBuilder
     public void setTimeStamp(long timeStamp)
     {
         this.timeStamp = timeStamp;
+    }
+
+    public long getTimePerOrder()
+    {
+        return timePerOrder;
     }
 
     public long getDateToSeconds()
@@ -122,10 +116,6 @@ public class TimeStampBuilder
     public long nextTimeStamp()
     {
         timeStamp += timePerOrder;
-
-        //LOGGER.info("cumulTimePerOrder = " + cumulTimePerOrder);
-
-        //timeStamp += cumulTimePerOrder;
         return (timeStamp);
     }
 
@@ -178,9 +168,8 @@ public class TimeStampBuilder
 
     protected void init() throws Exception
     {
-        ratio = (closeHoursToSeconds - openHoursToSeconds) / (nbTickMax + 1); // +1 to not reach the closehour on the last tick
+        ratio = (closeHoursToSeconds - openHoursToSeconds) / (nbTickMax); // +1 to not reach the closehour on the last tick or not +1 but begin at openhour
 
-        //cumulTimePerOrder = ratio;
         LOGGER.info("ratio = " + ratio);
 
         //calc nb max order between 2 ticks

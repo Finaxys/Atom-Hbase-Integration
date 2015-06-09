@@ -1,12 +1,12 @@
 package com.finaxys;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.client.HConnectionManager;
 import v13.Day;
 import v13.MonothreadedSimulation;
+import v13.Replay;
 import v13.Simulation;
 import v13.agents.ZIT;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,7 +26,6 @@ enum Output
 public class AtomHBaseIntegration
 {
     private static final Logger LOGGER = Logger.getLogger(AtomHBaseIntegration.class.getName());
-
     // Static infos
     static public final String[] DOW2 = {"MMM", "AXP"};
     static public final String[] DOW30 = {"MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "DIS", "DD", "XOM", "GE", "GS", "HD", "IBM", "INTC", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UTX", "UNH", "VZ", "V", "WMT"};
@@ -49,8 +48,11 @@ public class AtomHBaseIntegration
     }
 
     // Main config for Atom
-    public static void main(String args[]) throws IOException
+    public static void main(String args[])
     {
+        String []str = {"-r", "/home/heraul_m/outputAtom.out"};
+        args = str;
+
         if (args.length > 0)
         {
             if ("-t".equals(args[0].toString()) || "-table".equals(args[0].toString()))
@@ -64,14 +66,62 @@ public class AtomHBaseIntegration
                 {
                     e.printStackTrace();
                 }
+                finally
+                {
+                    return;
+                }
+            }
+            else if ("-r".equals(args[0].toString()) || "-replay".equals(args[0].toString()))
+            {
+                if (args.length <= 1)
+                {
+                    LOGGER.log(Level.INFO, "You have to specify the path of the file you want to replay.");
+                    return;
+                }
+                else
+                {
+                    try
+                    {
+                        replay(args[1]);
+                        LOGGER.info("args1 = " + args[1]);
+                    }
+                    catch (Exception e)
+                    {
+                        e.printStackTrace();
+                    }
+                    return;
+                }
             }
             else
             {
                 LOGGER.log(Level.SEVERE, "Arguments not recognized");
+                return;
             }
-            return;
         }
         run();
+    }
+
+    public static void replay(String pathFile) throws Exception
+    {
+        File file = new File(pathFile);
+        if (file.exists())
+        {
+            Replay replay = new Replay(pathFile);
+
+            //outSystem must be true, is value false
+            initSim();
+            replay.sim.setLogger(logger);
+            //replay.sim.setLogger(new HBaseLogger(Output.Both, System.out, tableName, cfName, dayGap));
+            //LOGGER.info("curentdayreplay = " + replay.sim.currentDay);
+            //replay.sim = sim;
+
+            replay.go();
+            //closeSim();
+        }
+        else
+        {
+            LOGGER.severe("File does not exist");
+        }
     }
 
     public static void getConfiguration() throws Exception
@@ -183,7 +233,6 @@ public class AtomHBaseIntegration
         sim = new MonothreadedSimulation();
 
         initHbaseLogger();
-
         sim.setLogger(logger);
 
         LOGGER.log(Level.INFO, "Setting up agents and orderbooks");

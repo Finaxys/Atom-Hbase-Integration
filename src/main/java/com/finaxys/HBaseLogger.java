@@ -64,6 +64,7 @@ class HBaseLogger extends Logger
                        @NotNull String cfName, int dayGap) throws Exception
     {
         super(filename);
+        LOGGER.info("filename = " + filename);
         this.dayGap = dayGap;
         init(output, tableName, cfName, false);
     }
@@ -72,6 +73,7 @@ class HBaseLogger extends Logger
                        @NotNull String cfName, int dayGap, boolean createConnectionOnly) throws Exception
     {
         super(filename);
+        LOGGER.info("filename = " + filename);
         this.dayGap = dayGap;
         init(output, tableName, cfName, createConnectionOnly);
     }
@@ -239,7 +241,6 @@ class HBaseLogger extends Logger
         }
     }
 
-
     public void agentReferential(@NotNull List<AgentReferentialLine> referencial) throws IOException
     {
         assert !referencial.isEmpty();
@@ -272,7 +273,6 @@ class HBaseLogger extends Logger
         }
         putTable(p);
     }
-
 
     @Override
     public void exec(Order o)
@@ -388,8 +388,6 @@ class HBaseLogger extends Logger
             //LOGGER.info("day current tick = " + day.currentTick());
             //LOGGER.info("day number + dayGap = " + day.number + dayGap);
             tsb.setCurrentTick(day.currentTick());
-            //tsb.setCumulTimePerOrder(0);
-            //LOGGER.info("cumulTimePerOder day = " + tsb.getCumulTimePerOrder());
             tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
 
             Put p = new Put(Bytes.toBytes(createRequired("T")));
