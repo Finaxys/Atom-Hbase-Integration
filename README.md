@@ -22,7 +22,7 @@
 
   > java -jar "atom.jar:Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar -t"
   
- - You can also do this command if you want to replay an order file :
+- You can also do this command if you want to replay an order file :
 
   > java -jar "atom.jar:Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar -r pathtoyourfile" 
 
