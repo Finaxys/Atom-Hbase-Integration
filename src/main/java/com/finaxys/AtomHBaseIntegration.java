@@ -51,7 +51,7 @@ public class AtomHBaseIntegration
     public static void main(String args[])
     {
         String []str = {"-r", "/home/heraul_m/outputAtom.out"};
-        args = str;
+        //args = str;
 
         if (args.length > 0)
         {

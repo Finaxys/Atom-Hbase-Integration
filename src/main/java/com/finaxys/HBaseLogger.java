@@ -59,6 +59,8 @@ class HBaseLogger extends Logger
     private long stackPuts;
 
     private TimeStampBuilder tsb;
+    //private int count = 0;
+
 
     public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
                        @NotNull String cfName, int dayGap) throws Exception
@@ -317,6 +319,9 @@ class HBaseLogger extends Logger
         }
         countOrder++;
         putTable(p);
+
+        //count++;
+        //LOGGER.info("count = " + count);
     }
 
     @Override
@@ -404,6 +409,8 @@ class HBaseLogger extends Logger
                 p.add(cfall, Bytes.toBytes("lastFixedPrice"), hbEncoder.encodeLong(ob.lastFixedPrice.price));
 
             putTable(p);
+
+            //count = 0;
         }
     }
 

@@ -5,6 +5,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.util.Date;
+
 import static org.junit.Assert.*;
 
 @Test
@@ -82,7 +84,7 @@ public class TimeStampBuilderTest
     }
 
     @Test
-    public void timePerOrderTest() throws Exception
+    public void timePerOrder() throws Exception
     {
         String dateBegin = "09/13/1986";
         String openHourStr = "9:00";
@@ -92,6 +94,43 @@ public class TimeStampBuilderTest
         tsb.init();
         tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
         assertEquals(tsb.baseTimeStampForNextTick() - (tsb.baseTimeStampForCurrentTick()), tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder()));
+    }
 
+    @Test
+    public void shouldNotByPassBaseTimeStampForNextTick() throws Exception
+    {
+        String dateBegin = "09/13/1986";
+        String openHourStr = "9:00";
+        String closeHourStr = "17:30";
+        String nbTickMaxStr = "20";
+        tsb.convertFromString(dateBegin, openHourStr, closeHourStr, nbTickMaxStr);
+        tsb.init();
+        tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
+        LOGGER.info("Next tick = " + tsb.baseTimeStampForNextTick());
+        LOGGER.info("addition = " + (tsb.getTimeStamp() + tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder())));
+        LOGGER.info("timeStamp = " + tsb.getTimeStamp());
+        LOGGER.info("add = " + tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder()));
+        assertTrue(tsb.baseTimeStampForNextTick() <= (tsb.getTimeStamp() + tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder())));
+
+
+    }
+
+    @Test
+    public void shouldReachNextTick() throws Exception
+    {
+        TimeStampBuilder t = new TimeStampBuilder("01/01/2000", "10:00", "11:00", "6");
+        t.init();
+        t.setTimeStamp(t.baseTimeStampForCurrentTick());
+        long hour = t.baseTimeStampForNextTick() - t.baseTimeStampForCurrentTick();
+        LOGGER.info("hour = " + hour);
+        assertEquals(600000, t.baseTimeStampForNextTick() - t.baseTimeStampForCurrentTick());
+        hour = t.getNbMaxOrderPerTick() * t.getTimePerOrder();
+        LOGGER.info("hourbis = " + hour);
+        assertEquals(600000, t.getNbMaxOrderPerTick() * t.getTimePerOrder());
+        hour = t.getTimeStamp() + t.getTimePerOrder() * t.getNbMaxOrderPerTick();
+        LOGGER.info("hourbisbis = " + hour);
+        LOGGER.info("nextTick = " + t.baseTimeStampForNextTick());
+        assertEquals(t.getTimeStamp() + t.getTimePerOrder() * t.getNbMaxOrderPerTick(), t.baseTimeStampForNextTick());
+        LOGGER.info("t " + t.getNbMaxOrderPerTick());
     }
 }

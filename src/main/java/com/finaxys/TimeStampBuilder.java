@@ -85,6 +85,11 @@ public class TimeStampBuilder
     {
     }
 
+    public TimeStampBuilder(String dateBegin, String openHourStr, String closeHourStr, String nbTickMaxStr) throws Exception
+    {
+        convertFromString(dateBegin, openHourStr, closeHourStr, nbTickMaxStr);
+    }
+
     public long baseTimeStampForCurrentTick()
     {
         long baseTimeStampCurrentTick;
@@ -173,7 +178,7 @@ public class TimeStampBuilder
         LOGGER.info("ratio = " + ratio);
 
         //calc nb max order between 2 ticks
-        nbMaxOrderPerTick = getNbAgents() * getNbOrderBooks() * 2;
+        nbMaxOrderPerTick = getNbAgents() * getNbOrderBooks(); // * 2
         LOGGER.info("nbmaxorderpertick = " + nbMaxOrderPerTick);
         timePerOrder = (ratio / nbMaxOrderPerTick);
         LOGGER.info("timePerOrder is = " + timePerOrder);
