@@ -2,8 +2,8 @@
 
 ## Build
 
-- atom.jar (v13) -> http://atom.univ-lille1.fr/ at the base of the project
-- Maven will take care of the rest
+- atom.jar (v13) -> http://atom.univ-lille1.fr/ in an atom folder in the base of the project
+- Do mvn install:install-file -Dfile=atom/atom.jar -DgroupId=atom -DartifactId=atom -Dversion=1.0 -Dpackaging=jar to install atom dependencies.
 - Maven configuration :
 
   > mvn clean compile assembly:single
