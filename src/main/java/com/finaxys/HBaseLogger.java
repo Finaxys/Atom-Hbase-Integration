@@ -220,7 +220,7 @@ class HBaseLogger extends Logger
             throw new Exception("zookeeper", e);
         }
 
-        if (!admin.tableExists(tableName))
+        if (admin.tableExists(tableName))
         {
             LOGGER.log(Level.INFO, tableName + " already exists");
             return;
@@ -270,7 +270,7 @@ class HBaseLogger extends Logger
         if (o.getClass().equals(LimitOrder.class))
         {
             p.add(cfall, Bytes.toBytes("direction"), hbEncoder.encodeChar(((LimitOrder) o).direction));
-            p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(tsb.getTimeStamp())); //pr.timestamp
+            p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(pr.timestamp)); //pr.timestamp
             p.add(cfall, Bytes.toBytes("orderExtId"), hbEncoder.encodeString(o.extId));
         }
         putTable(p);

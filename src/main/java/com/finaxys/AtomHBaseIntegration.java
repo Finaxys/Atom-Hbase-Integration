@@ -59,7 +59,7 @@ public class AtomHBaseIntegration
             {
                 try
                 {
-                    getTableAndCfName();
+                    initTableAndCfName();
                     logger = new HBaseLogger(tableName, cfName);
                 }
                 catch (Exception e)
@@ -161,7 +161,7 @@ public class AtomHBaseIntegration
         startTime = System.currentTimeMillis();
     }
 
-    private static void getTableAndCfName() throws Exception
+    private static void initTableAndCfName() throws Exception
     {
         FileInputStream propFile = new FileInputStream("properties.txt");
         Properties p = new Properties(System.getProperties());
