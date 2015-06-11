@@ -95,11 +95,11 @@ public class TimeStampBuilder
         long baseTimeStampCurrentTick;
         if (currentTick == nbTickMax)
         {
-            baseTimeStampCurrentTick = nbMilliSecHour + dateToSeconds + (currentDay - 1) * nbMilliSecDay + openHoursToSeconds + currentTick * ratio;
+            baseTimeStampCurrentTick = nbMilliSecHour + dateToSeconds + (currentDay - 1) * nbMilliSecDay + openHoursToSeconds + (currentTick - 1) * ratio;
         }
         else
         {
-            baseTimeStampCurrentTick = nbMilliSecHour + dateToSeconds + currentDay * nbMilliSecDay + openHoursToSeconds + currentTick * ratio;
+            baseTimeStampCurrentTick = nbMilliSecHour + dateToSeconds + currentDay * nbMilliSecDay + openHoursToSeconds + (currentTick - 1) * ratio;
         }
         return (baseTimeStampCurrentTick);
     }
@@ -109,11 +109,11 @@ public class TimeStampBuilder
         long baseTimeStampNextTick;
         if (currentTick == nbTickMax)
         {
-            baseTimeStampNextTick = nbMilliSecHour + dateToSeconds + (currentDay - 1) * nbMilliSecDay + openHoursToSeconds + (currentTick + 1) * ratio;
+            baseTimeStampNextTick = nbMilliSecHour + dateToSeconds + (currentDay - 1) * nbMilliSecDay + openHoursToSeconds + (currentTick) * ratio;
         }
         else
         {
-            baseTimeStampNextTick = nbMilliSecHour + dateToSeconds + currentDay * nbMilliSecDay + openHoursToSeconds + (currentTick + 1) * ratio;
+            baseTimeStampNextTick = nbMilliSecHour + dateToSeconds + currentDay * nbMilliSecDay + openHoursToSeconds + (currentTick) * ratio;
         }
         return (baseTimeStampNextTick);
     }
@@ -178,10 +178,11 @@ public class TimeStampBuilder
         LOGGER.info("ratio = " + ratio);
 
         //calc nb max order between 2 ticks
-        nbMaxOrderPerTick = getNbAgents() * getNbOrderBooks(); // * 2
+        nbMaxOrderPerTick = getNbAgents() * getNbOrderBooks() * 2; // * 2
         LOGGER.info("nbmaxorderpertick = " + nbMaxOrderPerTick);
         timePerOrder = (ratio / nbMaxOrderPerTick);
         LOGGER.info("timePerOrder is = " + timePerOrder);
+        setTimeStamp(baseTimeStampForCurrentTick());
     }
 
     private int getNbAgents() throws Exception

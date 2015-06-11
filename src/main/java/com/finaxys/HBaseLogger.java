@@ -59,7 +59,7 @@ class HBaseLogger extends Logger
     private long stackPuts;
 
     private TimeStampBuilder tsb;
-    //private int count = 0;
+    private int count = 0;
 
 
     public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
@@ -114,7 +114,6 @@ class HBaseLogger extends Logger
         {
             HConnection connection = HConnectionManager.createConnection(conf);
             createTable(tableName, cfName, connection);
-            LOGGER.log(Level.INFO, "Table " + tableName + " created");
         }
         catch (IOException e)
         {
@@ -184,9 +183,9 @@ class HBaseLogger extends Logger
         Configuration conf = HBaseConfiguration.create();
         try
         {
-            String minicluster = System.getProperty("hbase.conf.minicluster", "");
-            if (!minicluster.isEmpty())
-                conf.addResource(new FileInputStream(minicluster));
+            String miniCluster = System.getProperty("hbase.conf.minicluster", "");
+            if (!miniCluster.isEmpty())
+                conf.addResource(new FileInputStream(miniCluster));
             else
             {
                 conf.addResource(new File(System.getProperty("hbase.conf.core", "core-site.xml")).getAbsoluteFile().toURI().toURL());
@@ -296,16 +295,17 @@ class HBaseLogger extends Logger
         if (output == Output.Other)
             return;
         long ts = System.currentTimeMillis(); //hack for update on scaledrisk (does not manage put then update with same ts)
+        o.timestamp = tsb.nextTimeStamp();
         Put p = new Put(Bytes.toBytes(createRequired("O")), ts);
         p.add(cfall, Bytes.toBytes("orderBookName"), hbEncoder.encodeString(o.obName));
         p.add(cfall, Bytes.toBytes("sender"), hbEncoder.encodeString(o.sender.name));
         p.add(cfall, Bytes.toBytes("extId"), hbEncoder.encodeString(o.extId));
         p.add(cfall, Bytes.toBytes("type"), hbEncoder.encodeChar(o.type));
         p.add(cfall, Bytes.toBytes("id"), hbEncoder.encodeLong(o.id));
-        p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(tsb.nextTimeStamp())); //o.timestamp
+        p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(o.timestamp)); //o.timestamp
 
         Date d = new Date(tsb.getTimeStamp());
-        LOGGER.info("timestamp = " + tsb.getTimeStamp());
+        LOGGER.info("timestamp equal " + tsb.getTimeStamp());
         //LOGGER.info("timestamp encoder = " + hbEncoder.encodeLong(o.timestamp));
         LOGGER.info("timestamp order date = " + d + " current tick = " + tsb.getCurrentTick() + " current day = " + tsb.getCurrentDay());
 
@@ -331,6 +331,7 @@ class HBaseLogger extends Logger
         if (output == Output.Other)
             return;
         long ts = System.currentTimeMillis() + 2L; //hack for update on scaledrisk (does not manage put then update with same ts)
+        pr.timestamp = tsb.nextTimeStamp();
         Put p = new Put(Bytes.toBytes(createRequired("P")), ts);
         p.add(cfall, Bytes.toBytes("obName"), ts, hbEncoder.encodeString(pr.obName));
         p.add(cfall, Bytes.toBytes("price"), ts, hbEncoder.encodeLong(pr.price));
@@ -348,6 +349,9 @@ class HBaseLogger extends Logger
         LOGGER.info("timestamp price date = " + d + " current tick = " + tsb.getCurrentTick() + " current day = " + tsb.getCurrentDay());*/
 
         putTable(p);
+
+        count++;
+        LOGGER.info("count = " + count);
     }
 
     @Override
@@ -410,7 +414,7 @@ class HBaseLogger extends Logger
 
             putTable(p);
 
-            //count = 0;
+            count = 0;
         }
     }
 
