@@ -65,8 +65,8 @@ class HBaseLogger extends Logger {
   private long timestamp;
   private static int currentTick = 1;
   private static int currentDay = 0;
-  private static long nbMillisecDay = 86400000;
-  private static long nbMillsecHour = 3600000;
+  private static long nbMillisecDay = 86400000L;
+  private static long nbMillsecHour = 3600000L;
 
   public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
                      @NotNull String cfName, int dayGap) throws Exception {
