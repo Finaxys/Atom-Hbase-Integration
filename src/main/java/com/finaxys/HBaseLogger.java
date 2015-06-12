@@ -486,7 +486,30 @@ class HBaseLogger extends Logger
     private String createRequired(@NotNull String name)
     {
         String required = "";
-        required += String.format("%010d", idTrace.incrementAndGet()) + name;
+        //String old = "";
+        long test = idTrace.incrementAndGet();
+        //old += String.format("%010d", test) + name;
+        long rowKey = reverse(test);
+        required += rowKey + name;
+
+        //LOGGER.info("test = " + test + " rowkey = " + rowKey + " required = " + required + " name = " + name );
+        //LOGGER.info("Old = " + old + " Required = " + required);
         return required;
     }
+
+    public static long reverse(long number)
+    {
+        long reverse = 0;
+        long remainder = 0;
+        do
+        {
+            remainder = number % 10;
+            reverse = reverse * 10 + remainder;
+            number = number / 10;
+        }
+        while(number > 0);
+
+        return reverse;
+    }
+
 }

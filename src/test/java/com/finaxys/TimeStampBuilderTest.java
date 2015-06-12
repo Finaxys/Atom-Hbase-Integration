@@ -6,8 +6,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Date;
-
-import static org.junit.Assert.*;
+import org.testng.Assert;
 
 @Test
 public class TimeStampBuilderTest
@@ -66,7 +65,8 @@ public class TimeStampBuilderTest
         tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
         LOGGER.info("timestamp " + tsb.getTimeStamp());
         LOGGER.info("bla " + tsb.baseTimeStampForCurrentTick());
-        assertEquals(match, expected == received);
+        Assert.assertEquals(match, expected == received);
+
     }
 
     @Test(dataProvider = "myDataProvider")
@@ -80,7 +80,7 @@ public class TimeStampBuilderTest
         tsb.convertFromString(dateBegin, openHourStr, closeHourStr, nbTickMaxStr);
         tsb.init();
         tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
-        assertEquals(match, expected == received);
+        Assert.assertEquals(match, expected == received);
     }
 
     @Test
@@ -93,7 +93,7 @@ public class TimeStampBuilderTest
         tsb.convertFromString(dateBegin, openHourStr, closeHourStr, nbTickMaxStr);
         tsb.init();
         tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
-        assertEquals(tsb.baseTimeStampForNextTick() - (tsb.baseTimeStampForCurrentTick()), tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder()));
+        Assert.assertEquals(tsb.baseTimeStampForNextTick() - (tsb.baseTimeStampForCurrentTick()), tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder()));
     }
 
     @Test
@@ -110,7 +110,7 @@ public class TimeStampBuilderTest
         LOGGER.info("addition = " + (tsb.getTimeStamp() + tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder())));
         LOGGER.info("timeStamp = " + tsb.getTimeStamp());
         LOGGER.info("add = " + tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder()));
-        assertTrue(tsb.baseTimeStampForNextTick() <= (tsb.getTimeStamp() + tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder())));
+        Assert.assertTrue(tsb.baseTimeStampForNextTick() <= (tsb.getTimeStamp() + tsb.getNbMaxOrderPerTick() * (tsb.getTimePerOrder())));
 
 
     }
@@ -123,14 +123,14 @@ public class TimeStampBuilderTest
         t.setTimeStamp(t.baseTimeStampForCurrentTick());
         long hour = t.baseTimeStampForNextTick() - t.baseTimeStampForCurrentTick();
         LOGGER.info("hour = " + hour);
-        assertEquals(600000, t.baseTimeStampForNextTick() - t.baseTimeStampForCurrentTick());
+        Assert.assertEquals(600000, t.baseTimeStampForNextTick() - t.baseTimeStampForCurrentTick());
         hour = t.getNbMaxOrderPerTick() * t.getTimePerOrder();
         LOGGER.info("hourbis = " + hour);
-        assertEquals(600000, t.getNbMaxOrderPerTick() * t.getTimePerOrder());
+        Assert.assertEquals(600000, t.getNbMaxOrderPerTick() * t.getTimePerOrder());
         hour = t.getTimeStamp() + t.getTimePerOrder() * t.getNbMaxOrderPerTick();
         LOGGER.info("hourbisbis = " + hour);
         LOGGER.info("nextTick = " + t.baseTimeStampForNextTick());
-        assertEquals(t.getTimeStamp() + t.getTimePerOrder() * t.getNbMaxOrderPerTick(), t.baseTimeStampForNextTick());
+        Assert.assertEquals(t.getTimeStamp() + t.getTimePerOrder() * t.getNbMaxOrderPerTick(), t.baseTimeStampForNextTick());
         LOGGER.info("t " + t.getNbMaxOrderPerTick());
     }
 }
