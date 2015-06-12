@@ -16,15 +16,15 @@
   - Orderbooks and agents are set by symbol. See DOW30 example to create your own liste
 - Launch application with this command:
 
-  > java -jar "atom.jar:Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar"
+  > java -jar Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar
 
 - Or with this one if you only want to create the table :
 
-  > java -jar "atom.jar:Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar -t"
+  > java -jar Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar -t
   
 - You can also do this command if you want to replay an order file :
 
-  > java -jar "atom.jar:Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar -r pathtoyourfile" 
+  > java -jar Atom-HBase-Integration-1.0-SNAPSHOT-jar-with-dependencies.jar -r pathtoyourfile 
 
 The system will then output the time it took to complete and the some basic informations about HBase.
 
