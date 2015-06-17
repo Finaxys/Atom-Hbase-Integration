@@ -43,8 +43,8 @@ class HBaseLogger extends Logger
     private Day lastTickDay;
     private AtomicLong idTrace = new AtomicLong(0);
 
-    private int countOrder;
-    private int countExec;
+    private int countOrder = 0;
+    private int countExec = 0;
 
     final HBaseDataTypeEncoder hbEncoder = new HBaseDataTypeEncoder();
 
@@ -60,6 +60,7 @@ class HBaseLogger extends Logger
 
     private TimeStampBuilder tsb;
     private int count = 0;
+    private int countPrice = 0;
 
 
     public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
@@ -319,7 +320,6 @@ class HBaseLogger extends Logger
         }
         countOrder++;
         putTable(p);
-
         //count++;
         //LOGGER.info("count = " + count);
     }
@@ -349,9 +349,9 @@ class HBaseLogger extends Logger
         LOGGER.info("timestamp price date = " + d + " current tick = " + tsb.getCurrentTick() + " current day = " + tsb.getCurrentDay());*/
 
         putTable(p);
-
         count++;
-        LOGGER.info("count = " + count);
+        countPrice++;//exec
+        //LOGGER.info("count = " + count);
     }
 
     @Override
@@ -478,6 +478,8 @@ class HBaseLogger extends Logger
             LOGGER.log(Level.SEVERE, "Could not close table", e);
             throw new Exception("Closing", e);
         }
+        LOGGER.log(Level.INFO, "number of orders = " + countOrder);
+        LOGGER.log(Level.INFO, "number of prices = " + countPrice);
 
         LOGGER.log(Level.INFO, "Closing table with " + (flushedPuts + stackedPuts) + " puts");
     }
