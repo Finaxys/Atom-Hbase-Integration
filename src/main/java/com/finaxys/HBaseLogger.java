@@ -13,7 +13,6 @@ import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.client.HConnectionManager;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.util.Bytes;
 import v13.Day;
 import v13.LimitOrder;
@@ -31,14 +30,16 @@ import java.io.PrintStream;
 import java.net.MalformedURLException;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 
 class HBaseLogger extends Logger {
   private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(HBaseLogger.class.getName());
   private Configuration conf;
-
-  private HTable table;
   private Day lastTickDay;
   private AtomicLong idTrace = new AtomicLong(0);
 
@@ -59,14 +60,22 @@ class HBaseLogger extends Logger {
 
   private TimeStampBuilder tsb;
   private int count = 0;
+  private final String tableName;
+  //TODO params
+  int bufferSize = 10_000;
+  int flushRatio = 10_000;
+  int worker = 10;
+  private ExecutorService eService;
 
+  private final ArrayBlockingQueue<Put> queue = new ArrayBlockingQueue<>(bufferSize);
 
   public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
                      @NotNull String cfName, int dayGap) throws Exception {
     super(filename);
     LOGGER.info("filename = " + filename);
     this.dayGap = dayGap;
-    init(output, tableName, cfName, false);
+    this.tableName = tableName;
+    init(output, cfName, false);
   }
 
   public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
@@ -74,27 +83,42 @@ class HBaseLogger extends Logger {
     super(filename);
     LOGGER.info("filename = " + filename);
     this.dayGap = dayGap;
-    init(output, tableName, cfName, createConnectionOnly);
+    this.tableName = tableName;
+
+    init(output, cfName, createConnectionOnly);
   }
 
   public HBaseLogger(@NotNull Output output, @NotNull PrintStream o, @NotNull String tableName,
                      @NotNull String cfName, int dayGap) throws Exception {
     super(o);
     this.dayGap = dayGap;
-    init(output, tableName, cfName, false);
+    this.tableName = tableName;
+
+    init(output, cfName, false);
   }
 
   public HBaseLogger(@NotNull String tableName, @NotNull String cfName, int dayGap) throws Exception {
     this.dayGap = dayGap;
-    init(Output.HBase, tableName, cfName, false);
+    this.tableName = tableName;
+
+    init(Output.HBase, cfName, false);
   }
 
   public HBaseLogger(@NotNull String tableName, @NotNull String cfName) throws Exception {
     this.dayGap = 0;
-    createTableOnly(tableName, cfName);
+    this.tableName = tableName;
+
+    createTableOnly(cfName);
   }
 
-  public void createTableOnly(@NotNull String tableName, @NotNull String cfName) throws Exception {
+  private void initWorkers() throws IOException {
+    eService = Executors.newFixedThreadPool(this.worker);
+    for (int i = 1; i <= worker; i++) {
+      eService.submit(new Worker(queue, createHTableConnexion(tableName), flushRatio, i));
+    }
+  }
+
+  public void createTableOnly(@NotNull String cfName) throws Exception {
     assert !tableName.isEmpty();
     assert !cfName.isEmpty();
     cfall = Bytes.toBytes(cfName);
@@ -112,7 +136,7 @@ class HBaseLogger extends Logger {
     }
   }
 
-  public void init(@NotNull Output output, @NotNull String tableName, @NotNull String cfName, boolean createTableOnly) throws Exception {
+  public void init(@NotNull Output output, @NotNull String cfName, boolean createTableOnly) throws Exception {
     tsb = new TimeStampBuilder();
     tsb.loadConfig();
     tsb.init();
@@ -122,20 +146,23 @@ class HBaseLogger extends Logger {
     cfall = Bytes.toBytes(cfName);
     this.output = output;
 
+    this.worker = Integer.parseInt(System.getProperty("simul.worker", "10"));
+    this.flushRatio = Integer.parseInt(System.getProperty("simul.flushRatio", "1000"));
+    this.bufferSize = Integer.parseInt(System.getProperty("simul.bufferSize", "10000"));
+
     if (output == Output.Other)
       return;
 
     autoflush = Boolean.parseBoolean(System.getProperty("hbase.autoflush", "false"));
     stackPuts = Integer.parseInt(System.getProperty("hbase.stackputs", "1000"));
 
-    Configuration conf = createConfiguration();
+    conf = createConfiguration();
 
     LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.property.clientPort"));
     LOGGER.log(Level.INFO, conf.get("hbase.zookeeper.quorum"));
 
     conf.reloadConfiguration();
 
-    LOGGER.log(Level.INFO, "Configuration completed");
     try {
       HConnection connection = HConnectionManager.createConnection(conf);
       createTable(tableName, cfName, connection);
@@ -147,17 +174,15 @@ class HBaseLogger extends Logger {
     if (createTableOnly) {
       return;
     }
-    try {
-      LOGGER.log(Level.INFO, "Getting table information");
-      table = new HTable(conf, tableName);
-      // AutoFlushing
-      table.setAutoFlushTo(autoflush);
-    } catch (IOException e) {
-      LOGGER.log(Level.SEVERE, "Could not get table " + tableName, e);
-      throw new Exception("Table", e);
-    }
-
+    initWorkers();
     LOGGER.log(Level.INFO, "Configuration completed");
+  }
+
+  private HTable createHTableConnexion(String tableName) throws IOException {
+    HTable table = new HTable(conf, tableName);
+    // AutoFlushing
+    table.setAutoFlushTo(autoflush);
+    return table;
   }
 
   public static Configuration createConfiguration() throws Exception {
@@ -212,11 +237,13 @@ class HBaseLogger extends Logger {
 
   public void agentReferential(@NotNull List<AgentReferentialLine> referencial) throws IOException {
     assert !referencial.isEmpty();
+    HTable table = createHTableConnexion(tableName);
     for (AgentReferentialLine agent : referencial) {
       Put p = agent.toPut(hbEncoder, cfall, System.currentTimeMillis());
       table.put(p);
     }
     table.flushCommits();
+    table.close();
   }
 
   @Override
@@ -376,50 +403,25 @@ class HBaseLogger extends Logger {
 
   private void putTable(@NotNull Put p) {
     try {
-      table.put(p);
-      ++stackedPuts;
-
-      // Flushing every X
-      if (!autoflush && stackedPuts > stackPuts)
-        flushPuts();
-
-    } catch (InterruptedIOException e) {
-      e.printStackTrace();
-    } catch (RetriesExhaustedWithDetailsException e) {
-      e.printStackTrace();
+      if (queue.size() % 500 == 0) {
+        LOGGER.info("Pending data size : " + queue.size());
+      }
+      queue.put(p);
+    } catch (InterruptedException e) {
+      LOGGER.severe("Faild to push data into queue : " + e.getMessage());
     }
-  }
-
-  private void flushPuts() {
-    try {
-      LOGGER.log(Level.INFO, "Flushing... total order sent : " + countOrder +
-          " - total exec sent : " + countExec + " - sum = " + (countOrder + countExec));
-      table.flushCommits();
-    } catch (InterruptedIOException e) {
-      LOGGER.log(Level.SEVERE, "Could not flush table", e);
-    } catch (RetriesExhaustedWithDetailsException e) {
-      LOGGER.log(Level.SEVERE, "Could not flush table ", e);
-    }
-
-    flushedPuts += stackedPuts;
-    stackedPuts = 0;
   }
 
   public void close() throws Exception {
     if (output == Output.Other)
       return;
+    LOGGER.info("Shutting down workers");
+    eService.shutdown();
 
-    if (!autoflush)
-      flushPuts();
-
-    try {
-      table.close();
-    } catch (IOException e) {
-      LOGGER.log(Level.SEVERE, "Could not close table", e);
-      throw new Exception("Closing", e);
+    while (!eService.awaitTermination(10L, TimeUnit.SECONDS)) {
+      LOGGER.info("Await pool termination. Still " + queue.size() + " Puts to proceed.");
     }
 
-    LOGGER.log(Level.INFO, "Closing table with " + (flushedPuts + stackedPuts) + " puts");
   }
 
   @NotNull
@@ -427,5 +429,65 @@ class HBaseLogger extends Logger {
     String required = "";
     required += String.format("%010d", idTrace.incrementAndGet()) + name;
     return required;
+  }
+
+  public static class Worker implements Runnable {
+    private static final java.util.logging.Logger LOGGER =
+        java.util.logging.Logger.getLogger(Worker.class.getName());
+    private final ArrayBlockingQueue<Put> queue;
+    private final HTable table;
+    private final int id;
+    private final int flushRate;
+    private int stackedPuts = 0;
+
+    public Worker(@NotNull ArrayBlockingQueue<Put> putQueue, @NotNull HTable htbl,
+                  int flushRate,
+                  int id) {
+      this.queue = putQueue;
+      this.table = htbl;
+      this.id = id;
+      this.flushRate = flushRate;
+    }
+
+    @Override
+    public void run() {
+      LOGGER.info("Worker #" + id + " started.");
+      try {
+        while (!Thread.currentThread().isInterrupted()) {
+          try {
+            table.put(queue.take());
+            ++stackedPuts;
+            manageFlush();
+          } catch (InterruptedIOException e) {
+            LOGGER.severe("Error Worker #" + id + " has been interrupted...");
+            return;
+          } catch (Throwable t) {
+            LOGGER.severe("Error Worker #" + id + " encountered an error : " + t.getMessage() + " - " + t.toString());
+          }
+        }
+      } finally {
+        try {
+          table.flushCommits();
+          table.close();
+        } catch (IOException e) {
+          LOGGER.severe("Error Worker #" + id + " failed to close table..." + e.getMessage());
+        }
+      }
+      LOGGER.info("Worker #" + id + " ended");
+    }
+
+    private void manageFlush() {
+
+      // Flushing every X
+      if (stackedPuts > flushRate) {
+        try {
+          table.flushCommits();
+          stackedPuts = 0;
+        } catch (Throwable t) {
+          LOGGER.severe("Error Worker #" + id + " encountered an error while flushing : " + t.getMessage() + " - " + t.toString());
+        }
+      }
+    }
+
   }
 }
