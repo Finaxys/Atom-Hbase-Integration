@@ -40,7 +40,6 @@ import java.util.logging.Level;
 class HBaseLogger extends Logger {
   private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(HBaseLogger.class.getName());
   private Configuration conf;
-  private Day lastTickDay;
   private AtomicLong idTrace = new AtomicLong(0);
 
   private int countOrder;
@@ -137,7 +136,8 @@ class HBaseLogger extends Logger {
     }
   }
 
-  public void init(@NotNull Output output, @NotNull String cfName, boolean createTableOnly) throws Exception {
+  public void init(@NotNull Output output, @NotNull String cfName, boolean createTableOnly) throws
+      Exception {
     tsb = new TimeStampBuilder();
     tsb.loadConfig();
     tsb.init();
@@ -204,7 +204,8 @@ class HBaseLogger extends Logger {
     return conf;
   }
 
-  public static void createTable(String tableName, String cfName, HConnection connection) throws Exception {
+  public static void createTable(String tableName, String cfName, HConnection connection) throws
+      Exception {
     HBaseAdmin admin = null;
     try {
       admin = new HBaseAdmin(connection);
@@ -236,7 +237,8 @@ class HBaseLogger extends Logger {
     }
   }
 
-  public void agentReferential(@NotNull List<AgentReferentialLine> referencial) throws IOException {
+  public void agentReferential(@NotNull List<AgentReferentialLine> referencial) throws
+      IOException {
     assert !referencial.isEmpty();
     HTable table = createHTableConnexion(tableName);
     for (AgentReferentialLine agent : referencial) {
@@ -369,7 +371,6 @@ class HBaseLogger extends Logger {
     if (output == Output.Other)
       return;
 
-    lastTickDay = day;
     for (OrderBook ob : orderbooks) {
       //LOGGER.info("day current tick = " + day.currentTick());
       //LOGGER.info("day number + dayGap = " + day.number + dayGap);
@@ -415,7 +416,16 @@ class HBaseLogger extends Logger {
     while (!eService.awaitTermination(10L, TimeUnit.SECONDS)) {
       LOGGER.info("Await pool termination. Still " + queue.size() + " Puts to proceed.");
     }
+    LOGGER.log(Level.INFO, "number of orders = " + countOrder);
+    LOGGER.log(Level.INFO, "number of prices = " + countPrice);
+    LOGGER.log(Level.INFO, "number of puts = " + (flushedPuts + stackedPuts) + " " + stackedPuts);
 
+  }
+
+  @NotNull
+  private String createRequired(@NotNull String name) {
+    long rowKey = Long.reverseBytes(idTrace.incrementAndGet());
+    return name + String.valueOf(rowKey);
   }
 
   public static class Worker implements Runnable {
@@ -475,33 +485,6 @@ class HBaseLogger extends Logger {
         }
       }
     }
-  }
-
-  @NotNull
-  private String createRequired(@NotNull String name) {
-    String required = "";
-    //String old = "";
-    long test = idTrace.incrementAndGet();
-    //old += String.format("%010d", test) + name;
-    long rowKey = reverse(test);
-    required += rowKey + name;
-
-    //LOGGER.info("test = " + test + " rowkey = " + rowKey + " required = " + required + " name = " + name );
-    //LOGGER.info("Old = " + old + " Required = " + required);
-    return required;
-  }
-
-  public static long reverse(long number) {
-    long reverse = 0;
-    long remainder = 0;
-    do {
-      remainder = number % 10;
-      reverse = reverse * 10 + remainder;
-      number = number / 10;
-    }
-    while (number > 0);
-
-    return reverse;
   }
 
 }
