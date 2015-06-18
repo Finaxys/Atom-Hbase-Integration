@@ -4,15 +4,14 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.util.Properties;
-import java.util.logging.Logger;
+
 import org.testng.Assert;
 
 @Test
-public class HBaseLoggerTest
+public class AtomLoggerTest
 {
-  private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(HBaseLogger.class.getName());
+  private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(AtomLogger.class.getName());
 
   @Test
   public void testReturnOfCoreSite() throws Exception

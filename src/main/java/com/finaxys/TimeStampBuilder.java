@@ -1,7 +1,6 @@
 package com.finaxys;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -11,7 +10,7 @@ import java.util.Properties;
 
 public class TimeStampBuilder
 {
-    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(HBaseLogger.class.getName());
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(AtomLogger.class.getName());
     private int nbTickMax;
     private int currentTick = 1;
     private int currentDay = 0;
@@ -129,7 +128,7 @@ public class TimeStampBuilder
      *
      * @throws Exception
      */
-    protected void loadConfig() throws Exception
+    protected void loadConfig(AtomHBConfiguration atomConf) throws Exception
     {
         //take the date
         String dateBegin = System.getProperty("simul.time.startdate");

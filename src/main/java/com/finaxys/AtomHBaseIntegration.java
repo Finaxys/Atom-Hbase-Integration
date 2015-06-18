@@ -7,60 +7,47 @@ import v13.Simulation;
 import v13.agents.ZIT;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
 public class AtomHBaseIntegration {
   private static final Logger LOGGER = Logger.getLogger(AtomHBaseIntegration.class.getName());
-  // Static infos
-  static public final String[] DOW2 = {"MMM", "AXP"};
-  static public final String[] DOW30 = {"MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "DIS", "DD", "XOM", "GE", "GS", "HD", "IBM", "INTC", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UTX", "UNH", "VZ", "V", "WMT"};
-  static private List<String> orderBooks;
-  static private List<String> agents;
 
-  private static String tableName;
-  private static String cfName;
-  private static boolean outHbase;
-  private static String outFile;
-  private static boolean outSystem;
-  private static int dayGap;
-  private static long startTime;
   private static Simulation sim;
-  private static HBaseLogger logger = null;
+  private static AtomLogger logger = null;
+  private static AtomHBConfiguration atomConf;
 
-  public static Simulation getSim() {
-    return sim;
-  }
+  private static long startTime = System.currentTimeMillis();
 
-  // Main config for Atom
-  public static void main(String args[]) {
-    String[] str = {"-r", "/home/heraul_m/outputAtom.out"};
-    //args = str;
+  public static void main(String args[]) throws Exception {
+
+    atomConf = new AtomHBConfiguration();
 
     if (args.length > 0) {
       if ("-t".equals(args[0].toString()) || "-table".equals(args[0].toString())) {
         try {
-          initTableAndCfName();
-          logger = new HBaseLogger(tableName, cfName);
+          HBaseInjector injector = new HBaseInjector(atomConf);
+          injector.createOutput();
+          injector.close();
         } catch (Exception e) {
           e.printStackTrace();
-        } finally {
-          return;
         }
-      } else if ("-r".equals(args[0].toString()) || "-replay".equals(args[0].toString())) {
-        if (args.length <= 1) {
+      } else if ("-r".equals(args[0].toString()) || atomConf.isReplay()) {
+        if (atomConf.getReplaySource() == null || atomConf.getReplaySource().isEmpty()) {
           LOGGER.log(Level.INFO, "You have to specify the path of the file you want to replay.");
           return;
         } else {
+          File f = new File(atomConf.getReplaySource());
+          if (!f.exists()) {
+            LOGGER.severe("Replay file source not found : " + atomConf.getReplaySource());
+          }
           try {
-            replay(args[1]);
+            replay(f);
             //LOGGER.info("args1 = " + args[1]);
           } catch (Exception e) {
             e.printStackTrace();
@@ -71,124 +58,43 @@ public class AtomHBaseIntegration {
         LOGGER.log(Level.SEVERE, "Arguments not recognized");
         return;
       }
-    }
-    run();
-  }
-
-  public static void replay(String pathFile) throws Exception {
-    File file = new File(pathFile);
-    if (file.exists()) {
-      Replay replay = new Replay(pathFile);
-
-      //outSystem must be true, is value false
-      initSim();
-      replay.sim.setLogger(logger);
-      //replay.sim.setLogger(new HBaseLogger(OutputType.Both, System.out, tableName, cfName, dayGap));
-      //LOGGER.info("curentdayreplay = " + replay.sim.currentDay);
-      //replay.sim = sim;
-
-      replay.go();
-      //closeSim();
-      logger.close();
     } else {
-      LOGGER.severe("File does not exist");
-    }
-  }
 
-  public static void getConfiguration() throws Exception {
-    FileInputStream propFile = new FileInputStream("properties.txt");
-    Properties p = new Properties(System.getProperties());
-    p.load(propFile);
-    System.setProperties(p);
-
-    // Get agents & orderbooks
-    String obsym = System.getProperty("atom.orderbooks", "");
-    LOGGER.info("obsym = " + obsym);
-    assert obsym != null;
-    String agsym = System.getProperty("atom.agents", "");
-    assert agsym != null;
-
-    agents = Arrays.asList(System.getProperty("symbols.agents." + agsym, "").split("\\s*,\\s*"));
-    orderBooks = Arrays.asList(System.getProperty("symbols.orderbooks." + obsym, "").split("\\s*,\\s*"));
-
-    if (agents.isEmpty() || orderBooks.isEmpty()) {
-      LOGGER.log(Level.SEVERE, "Agents/Orderbooks not set");
-      throw new Exception("agents/orderbooks");
+      run();
     }
 
-    tableName = System.getProperty("hbase.table", "trace");
-    assert tableName != null;
-    cfName = System.getProperty("hbase.cf", "cf");
-    assert cfName != null;
-    outHbase = System.getProperty("simul.output.hbase", "true").equals("true");
-    outFile = System.getProperty("simul.output.file", "");
-    assert outFile != null;
-    outSystem = System.getProperty("simul.output.standard", "false").equals("false");
-    dayGap = Integer.parseInt(System.getProperty("simul.day.startDay", "1")) - 1;
 
-    // How long
-    startTime = System.currentTimeMillis();
   }
 
-  private static void initTableAndCfName() throws Exception {
-    FileInputStream propFile = new FileInputStream("properties.txt");
-    Properties p = new Properties(System.getProperties());
-    p.load(propFile);
-    System.setProperties(p);
-    tableName = System.getProperty("hbase.table", "trace");
-    assert tableName != null;
-    cfName = System.getProperty("hbase.cf", "cf");
-    assert cfName != null;
-  }
+  public static void replay(File file) throws Exception {
+    Replay replay = new Replay(file.getAbsolutePath());
 
-  public static void initHbaseLogger() {
-    try {
-      if (outHbase) {
-        if (outSystem)
-          logger = new HBaseLogger(OutputType.Both, System.out, tableName, cfName, dayGap);
-        else if (!outFile.equals(""))
-          logger = new HBaseLogger(OutputType.Both, outFile, tableName, cfName, dayGap);
-        else
-          logger = new HBaseLogger(tableName, cfName, dayGap);
-      } else if (outSystem)
-        logger = new HBaseLogger(OutputType.Other, System.out, tableName, cfName, dayGap);
-      else if (!outFile.equals(""))
-        logger = new HBaseLogger(OutputType.Other, outFile, tableName, cfName, dayGap);
-      else {
-        LOGGER.log(Level.SEVERE, "Config file must have at least one output");
-        return;
-      }
-    } catch (Exception e) {
-      LOGGER.log(Level.SEVERE, "Could not init logger", e);
-      return;
-    }
-  }
-
-  public static void run() {
+    //outSystem must be true, is value false
     initSim();
+    replay.sim.setLogger(logger);
+    replay.go();
+    logger.close();
+  }
 
-    sim.run(Day.createEuroNEXT(Integer.parseInt(System.getProperty("simul.tick.opening", "0")),
-            Integer.parseInt(System.getProperty("simul.tick.continuous", "10")),
-            Integer.parseInt(System.getProperty("simul.tick.closing", "0"))),
-        Integer.parseInt(System.getProperty("simul.days", "1")));
-
+  public static void run() throws Exception {
+    initSim();
+    startTime = System.currentTimeMillis();
+    sim.run(Day.createEuroNEXT(atomConf.getTickOpening(), atomConf.getTickContinuous(), atomConf.getTickClosing())
+        , atomConf.getDays());
     closeSim();
   }
 
-  public static void initSim() {
-    // Loading properties
-    try {
-      getConfiguration();
-    } catch (Exception e) {
-      LOGGER.log(Level.SEVERE, "Could not load properties", e);
-      return;
-    }
-
+  public static void initSim() throws Exception {
     // Create simulator with custom logger
     // Simulation sim = new MultithreadedSimulation();
     sim = new MonothreadedSimulation();
+    boolean trace = atomConf.isOutSystem();
+    if (atomConf.isOutHbase()) {
+      logger = new AtomLogger(atomConf, new HBaseInjector(atomConf));
+    } else {
+      logger = new AtomLogger(atomConf);
+    }
 
-    initHbaseLogger();
     sim.setLogger(logger);
 
     LOGGER.log(Level.INFO, "Setting up agents and orderbooks");
@@ -196,7 +102,7 @@ public class AtomHBaseIntegration {
     // Create Agents and Order book to MarketMaker depending properties
     boolean marketmaker = System.getProperty("atom.marketmaker", "true").equals("true");
 
-    for (String agent : agents)
+    for (String agent : atomConf.getAgents())
       sim.addNewAgent(new ZIT(agent, Integer.parseInt(System.getProperty("simul. .cash", "0")),
           Integer.parseInt(System.getProperty("simul.agent.minprice", "10000")),
           Integer.parseInt(System.getProperty("simul.agent.maxprice", "20000")),
@@ -206,13 +112,13 @@ public class AtomHBaseIntegration {
     List<AgentReferentialLine> agLines = new ArrayList<AgentReferentialLine>();
     int idCount = 0;
 
-    for (String agent : agents) {
+    for (String agent : atomConf.getAgents()) {
       agLines.add(new AgentReferentialLine(++idCount, agent));
     }
     if (marketmaker) {
       agLines.add(new AgentReferentialLine(++idCount, "mm"));
     }
-    for (String orderBook : orderBooks) {
+    for (String orderBook : atomConf.getOrderBooks()) {
       if (marketmaker) {
         sim.addNewMarketMaker(orderBook);
       } else {
@@ -221,7 +127,7 @@ public class AtomHBaseIntegration {
     }
     LOGGER.log(Level.INFO, Arrays.toString(agLines.toArray(new AgentReferentialLine[agLines.size()])));
     LOGGER.log(Level.INFO, "Is sending agent referential...");
-    if (outHbase) {
+    if (atomConf.isOutHbase()) {
       //Send agent referential
       try {
         logger.agentReferential(agLines);

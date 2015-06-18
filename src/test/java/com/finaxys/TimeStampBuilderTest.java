@@ -5,13 +5,12 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.Date;
 import org.testng.Assert;
 
 @Test
 public class TimeStampBuilderTest
 {
-    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(HBaseLogger.class.getName());
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(AtomLogger.class.getName());
 
     private TimeStampBuilder tsb = new TimeStampBuilder();
 
