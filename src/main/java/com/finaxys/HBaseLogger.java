@@ -186,7 +186,7 @@ class HBaseLogger extends Logger {
     return table;
   }
 
-  public static Configuration createConfiguration() throws Exception {
+  public Configuration createConfiguration() throws Exception {
     Configuration conf = HBaseConfiguration.create();
     try {
       String miniCluster = System.getProperty("hbase.conf.minicluster", "");
