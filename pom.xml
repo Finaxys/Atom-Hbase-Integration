@@ -121,15 +121,21 @@
         </dependency>
 
         <dependency>
-            <groupId>atom</groupId>
-            <artifactId>atom</artifactId>
-            <version>1.0</version>
-        </dependency>
-        <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
             <version>6.1.1</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>6.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>atom</groupId>
+            <artifactId>atom</artifactId>
+            <version>1.0</version>
         </dependency>
 
 
