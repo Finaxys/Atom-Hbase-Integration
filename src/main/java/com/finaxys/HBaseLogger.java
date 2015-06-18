@@ -58,8 +58,6 @@ class HBaseLogger extends Logger {
   private boolean autoflush;
   private long stackPuts;
 
-  private TimeStampBuilder tsb;
-  private int count = 0;
   private final String tableName;
   //TODO params
   int bufferSize = 10_000;
@@ -68,6 +66,9 @@ class HBaseLogger extends Logger {
   private ExecutorService eService;
 
   private final ArrayBlockingQueue<Put> queue = new ArrayBlockingQueue<>(bufferSize);
+  private TimeStampBuilder tsb;
+  private int count = 0;
+  private int countPrice = 0;
 
   public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
                      @NotNull String cfName, int dayGap) throws Exception {
@@ -330,15 +331,8 @@ class HBaseLogger extends Logger {
     p.add(cfall, Bytes.toBytes("bestbid"), ts, hbEncoder.encodeLong(bestBidPrice));
     p.add(cfall, Bytes.toBytes("timestamp"), ts, hbEncoder.encodeLong((pr.timestamp > 0 ? pr.timestamp : ts))); // tsb.nextTimeStamp()
 
-       /* Date d = new Date(tsb.getTimeStamp());
-        LOGGER.info("timestamp = " + tsb.getTimeStamp());
-        //LOGGER.info("timestamp encoder = " + hbEncoder.encodeLong(o.timestamp));
-        LOGGER.info("timestamp price date = " + d + " current tick = " + tsb.getCurrentTick() + " current day = " + tsb.getCurrentDay());*/
-
     putTable(p);
 
-    count++;
-    LOGGER.info("count = " + count);
   }
 
   @Override
@@ -424,13 +418,6 @@ class HBaseLogger extends Logger {
 
   }
 
-  @NotNull
-  private String createRequired(@NotNull String name) {
-    String required = "";
-    required += String.format("%010d", idTrace.incrementAndGet()) + name;
-    return required;
-  }
-
   public static class Worker implements Runnable {
     private static final java.util.logging.Logger LOGGER =
         java.util.logging.Logger.getLogger(Worker.class.getName());
@@ -488,6 +475,33 @@ class HBaseLogger extends Logger {
         }
       }
     }
-
   }
+
+  @NotNull
+  private String createRequired(@NotNull String name) {
+    String required = "";
+    //String old = "";
+    long test = idTrace.incrementAndGet();
+    //old += String.format("%010d", test) + name;
+    long rowKey = reverse(test);
+    required += rowKey + name;
+
+    //LOGGER.info("test = " + test + " rowkey = " + rowKey + " required = " + required + " name = " + name );
+    //LOGGER.info("Old = " + old + " Required = " + required);
+    return required;
+  }
+
+  public static long reverse(long number) {
+    long reverse = 0;
+    long remainder = 0;
+    do {
+      remainder = number % 10;
+      reverse = reverse * 10 + remainder;
+      number = number / 10;
+    }
+    while (number > 0);
+
+    return reverse;
+  }
+
 }

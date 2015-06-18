@@ -83,7 +83,7 @@ public class AtomHBaseIntegration
                     try
                     {
                         replay(args[1]);
-                        LOGGER.info("args1 = " + args[1]);
+                        //LOGGER.info("args1 = " + args[1]);
                     }
                     catch (Exception e)
                     {
@@ -117,6 +117,7 @@ public class AtomHBaseIntegration
 
             replay.go();
             //closeSim();
+            logger.close();
         }
         else
         {
