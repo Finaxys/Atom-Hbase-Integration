@@ -16,12 +16,6 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-enum Output
-{
-    HBase,
-    Other,
-    Both
-};
 
 public class AtomHBaseIntegration
 {
@@ -111,7 +105,7 @@ public class AtomHBaseIntegration
             //outSystem must be true, is value false
             initSim();
             replay.sim.setLogger(logger);
-            //replay.sim.setLogger(new HBaseLogger(Output.Both, System.out, tableName, cfName, dayGap));
+            //replay.sim.setLogger(new HBaseLogger(OutputType.Both, System.out, tableName, cfName, dayGap));
             //LOGGER.info("curentdayreplay = " + replay.sim.currentDay);
             //replay.sim = sim;
 
@@ -181,16 +175,16 @@ public class AtomHBaseIntegration
             if (outHbase)
             {
                 if (outSystem)
-                    logger = new HBaseLogger(Output.Both, System.out, tableName, cfName, dayGap);
+                    logger = new HBaseLogger(OutputType.Both, System.out, tableName, cfName, dayGap);
                 else if (!outFile.equals(""))
-                    logger = new HBaseLogger(Output.Both, outFile, tableName, cfName, dayGap);
+                    logger = new HBaseLogger(OutputType.Both, outFile, tableName, cfName, dayGap);
                 else
                     logger = new HBaseLogger(tableName, cfName, dayGap);
             }
             else if (outSystem)
-                logger = new HBaseLogger(Output.Other, System.out, tableName, cfName, dayGap);
+                logger = new HBaseLogger(OutputType.Other, System.out, tableName, cfName, dayGap);
             else if (!outFile.equals(""))
-                logger = new HBaseLogger(Output.Other, outFile, tableName, cfName, dayGap);
+                logger = new HBaseLogger(OutputType.Other, outFile, tableName, cfName, dayGap);
             else
             {
                 LOGGER.log(Level.SEVERE, "Config file must have at least one output");

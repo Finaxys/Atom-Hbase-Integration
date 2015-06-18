@@ -47,7 +47,7 @@ class HBaseLogger extends Logger {
 
   final HBaseDataTypeEncoder hbEncoder = new HBaseDataTypeEncoder();
 
-  private Output output;
+  private OutputType output;
 
   private byte[] cfall;
 
@@ -69,7 +69,7 @@ class HBaseLogger extends Logger {
   private int count = 0;
   private int countPrice = 0;
 
-  public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
+  public HBaseLogger(@NotNull OutputType output, @NotNull String filename, @NotNull String tableName,
                      @NotNull String cfName, int dayGap) throws Exception {
     super(filename);
     LOGGER.info("filename = " + filename);
@@ -78,7 +78,7 @@ class HBaseLogger extends Logger {
     init(output, cfName, false);
   }
 
-  public HBaseLogger(@NotNull Output output, @NotNull String filename, @NotNull String tableName,
+  public HBaseLogger(@NotNull OutputType output, @NotNull String filename, @NotNull String tableName,
                      @NotNull String cfName, int dayGap, boolean createConnectionOnly) throws Exception {
     super(filename);
     LOGGER.info("filename = " + filename);
@@ -88,7 +88,7 @@ class HBaseLogger extends Logger {
     init(output, cfName, createConnectionOnly);
   }
 
-  public HBaseLogger(@NotNull Output output, @NotNull PrintStream o, @NotNull String tableName,
+  public HBaseLogger(@NotNull OutputType output, @NotNull PrintStream o, @NotNull String tableName,
                      @NotNull String cfName, int dayGap) throws Exception {
     super(o);
     this.dayGap = dayGap;
@@ -101,7 +101,7 @@ class HBaseLogger extends Logger {
     this.dayGap = dayGap;
     this.tableName = tableName;
 
-    init(Output.HBase, cfName, false);
+    init(OutputType.HBase, cfName, false);
   }
 
   public HBaseLogger(@NotNull String tableName, @NotNull String cfName) throws Exception {
@@ -136,7 +136,7 @@ class HBaseLogger extends Logger {
     }
   }
 
-  public void init(@NotNull Output output, @NotNull String cfName, boolean createTableOnly) throws
+  public void init(@NotNull OutputType output, @NotNull String cfName, boolean createTableOnly) throws
       Exception {
     tsb = new TimeStampBuilder();
     tsb.loadConfig();
@@ -151,7 +151,7 @@ class HBaseLogger extends Logger {
     this.flushRatio = Integer.parseInt(System.getProperty("simul.flushRatio", "1000"));
     this.bufferSize = Integer.parseInt(System.getProperty("simul.bufferSize", "10000"));
 
-    if (output == Output.Other)
+    if (output == OutputType.Other)
       return;
 
     autoflush = Boolean.parseBoolean(System.getProperty("hbase.autoflush", "false"));
@@ -252,7 +252,7 @@ class HBaseLogger extends Logger {
   @Override
   public void agent(Agent a, Order o, PriceRecord pr) {
     super.agent(a, o, pr);
-    if (output == Output.Other)
+    if (output == OutputType.Other)
       return;
 
     Put p = new Put(Bytes.toBytes(createRequired("A")));
@@ -272,7 +272,7 @@ class HBaseLogger extends Logger {
   @Override
   public void exec(Order o) {
     super.exec(o);
-    if (output == Output.Other)
+    if (output == OutputType.Other)
       return;
     Put p = new Put(Bytes.toBytes(createRequired("E")));
     p.add(cfall, Bytes.toBytes("sender"), hbEncoder.encodeString(o.sender.name));
@@ -284,7 +284,7 @@ class HBaseLogger extends Logger {
   @Override
   public void order(Order o) {
     super.order(o);
-    if (output == Output.Other)
+    if (output == OutputType.Other)
       return;
     long ts = System.currentTimeMillis(); //hack for update on scaledrisk (does not manage put then update with same ts)
     o.timestamp = tsb.nextTimeStamp();
@@ -318,7 +318,7 @@ class HBaseLogger extends Logger {
   @Override
   public void price(PriceRecord pr, long bestAskPrice, long bestBidPrice) {
     super.price(pr, bestAskPrice, bestBidPrice);
-    if (output == Output.Other)
+    if (output == OutputType.Other)
       return;
     long ts = System.currentTimeMillis() + 2L; //hack for update on scaledrisk (does not manage put then update with same ts)
     pr.timestamp = tsb.nextTimeStamp();
@@ -340,7 +340,7 @@ class HBaseLogger extends Logger {
   @Override
   public void day(int nbDays, java.util.Collection<OrderBook> orderbooks) {
     super.day(nbDays, orderbooks);
-    if (output == Output.Other)
+    if (output == OutputType.Other)
       return;
 
     for (OrderBook ob : orderbooks) {
@@ -368,7 +368,7 @@ class HBaseLogger extends Logger {
   @Override
   public void tick(Day day, java.util.Collection<OrderBook> orderbooks) {
     super.tick(day, orderbooks);
-    if (output == Output.Other)
+    if (output == OutputType.Other)
       return;
 
     for (OrderBook ob : orderbooks) {
@@ -408,7 +408,7 @@ class HBaseLogger extends Logger {
   }
 
   public void close() throws Exception {
-    if (output == Output.Other)
+    if (output == OutputType.Other)
       return;
     LOGGER.info("Shutting down workers");
     eService.shutdown();
