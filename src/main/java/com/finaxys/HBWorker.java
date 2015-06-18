@@ -9,6 +9,7 @@ import java.io.InterruptedIOException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Worker consumer used to send put in table.
@@ -22,17 +23,19 @@ public class HBWorker implements Runnable {
   private final int id;
   private final int flushRate;
   private int stackedPuts = 0;
-
+  private long totalPut;
   private final AtomicBoolean isClosing;
+  private final AtomicLong globalTotalPutCount;
 
   public HBWorker(@NotNull ArrayBlockingQueue<Put> putQueue, @NotNull HTable htbl,
                   int flushRate,
-                  int id, AtomicBoolean isClosing) {
+                  int id, AtomicBoolean isClosing, AtomicLong totalPutCount) {
     this.queue = putQueue;
     this.table = htbl;
     this.id = id;
     this.flushRate = flushRate;
     this.isClosing = isClosing;
+    this.globalTotalPutCount = totalPutCount;
   }
 
   @Override
@@ -55,6 +58,8 @@ public class HBWorker implements Runnable {
         }
       }
     } finally {
+      LOGGER.info("Worker #" + id + " has proceed " + globalTotalPutCount + " puts");
+      globalTotalPutCount.addAndGet(totalPut);
       try {
         table.flushCommits();
         table.close();
@@ -71,6 +76,7 @@ public class HBWorker implements Runnable {
     if (stackedPuts > flushRate) {
       try {
         table.flushCommits();
+        totalPut += stackedPuts;
         stackedPuts = 0;
       } catch (Throwable t) {
         LOGGER.severe("Error Worker #" + id + " encountered an error while flushing : " + t.getMessage() + " - " + t.toString());

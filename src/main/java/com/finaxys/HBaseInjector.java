@@ -58,6 +58,7 @@ public class HBaseInjector implements AtomDataInjector {
   //Props
   private final byte[] cfall;
 
+  private final AtomicLong globalCount = new AtomicLong(0L);
 
   public HBaseInjector(@NotNull AtomHBConfiguration conf) throws Exception {
     this.atomConf = conf;
@@ -76,7 +77,7 @@ public class HBaseInjector implements AtomDataInjector {
     eService = Executors.newFixedThreadPool(worker);
     for (int i = 1; i <= worker; i++) {
       eService.submit(new HBWorker(queue, createHTableConnexion(atomConf.getTableName(), this.hbConf),
-          atomConf.getFlushRatio(), i, isClosing));
+          atomConf.getFlushRatio(), i, isClosing, globalCount));
     }
   }
 
@@ -187,10 +188,6 @@ public class HBaseInjector implements AtomDataInjector {
     p.add(cfall, Bytes.toBytes("timestamp"), hbEncoder.encodeLong(o.timestamp)); //o.timestamp
 
     Date d = new Date(tsb.getTimeStamp());
-    LOGGER.info("timestamp equal " + tsb.getTimeStamp());
-    //LOGGER.info("timestamp encoder = " + hbEncoder.encodeLong(o.timestamp));
-    LOGGER.info("timestamp order date = " + d + " current tick = " + tsb.getCurrentTick() + " current day = " + tsb.getCurrentDay());
-
     if (o.getClass().equals(LimitOrder.class)) {
       LimitOrder lo = (LimitOrder) o;
       p.add(cfall, Bytes.toBytes("quantity"), hbEncoder.encodeInt(lo.quantity));
@@ -204,8 +201,7 @@ public class HBaseInjector implements AtomDataInjector {
   @Override
   public void sendTick(Day day, Collection<OrderBook> orderbooks) {
     for (OrderBook ob : orderbooks) {
-      //LOGGER.info("day current tick = " + day.currentTick());
-      //LOGGER.info("day number + dayGap = " + day.number + dayGap);
+
       tsb.setCurrentTick(day.currentTick());
       tsb.setTimeStamp(tsb.baseTimeStampForCurrentTick());
 
@@ -237,12 +233,8 @@ public class HBaseInjector implements AtomDataInjector {
 
   @Override
   public void sendDay(int nbDays, Collection<OrderBook> orderbooks) {
+    tsb.setCurrentDay(nbDays);
     for (OrderBook ob : orderbooks) {
-      LOGGER.info("day en cours = " + nbDays);
-      //LOGGER.info("cureent day + dayGap = " + nbDays + dayGap);
-
-      tsb.setCurrentDay(nbDays);
-
       Put p = new Put(Bytes.toBytes(createRequired("D")));
       p.add(cfall, Bytes.toBytes("NumDay"), hbEncoder.encodeInt(nbDays + atomConf.getDayGap()));
       p.add(cfall, Bytes.toBytes("orderBookName"), hbEncoder.encodeString(ob.obName));
@@ -263,7 +255,6 @@ public class HBaseInjector implements AtomDataInjector {
     HTable table = null;
     try {
       table = createHTableConnexion(atomConf.getTableName(), hbConf);
-
       for (AgentReferentialLine agent : referencial) {
         Put p = agent.toPut(hbEncoder, cfall, System.currentTimeMillis());
         table.put(p);
@@ -277,7 +268,7 @@ public class HBaseInjector implements AtomDataInjector {
 
   private void putTable(@NotNull Put p) {
     try {
-      if (queue.size() % 500 == 0) {
+      if (queue.size() > 0 && queue.size() % 1000 == 0) {
         LOGGER.info("Pending data size : " + queue.size());
       }
       queue.put(p);
@@ -289,7 +280,7 @@ public class HBaseInjector implements AtomDataInjector {
   @NotNull
   private String createRequired(@NotNull String name) {
     long rowKey = Long.reverseBytes(idGen.incrementAndGet());
-    return name + String.valueOf(rowKey);
+    return String.valueOf(rowKey) + name;
   }
 
   private Configuration createHbaseConfiguration() throws Exception {
@@ -317,10 +308,12 @@ public class HBaseInjector implements AtomDataInjector {
     isClosing.set(true);
     try {
       while (!eService.awaitTermination(10L, TimeUnit.SECONDS)) {
-        LOGGER.info("Await pool termination. Still " + queue.size() + " Puts to proceed.");
+        LOGGER.info("Await pool termination. Still " + queue.size() + " puts to proceed.");
       }
     } catch (InterruptedException e) {
       e.printStackTrace();
+    } finally {
+      LOGGER.info("Total put sent : " + globalCount.get());
     }
   }
 }
