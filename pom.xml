@@ -30,6 +30,7 @@
                 <configuration>
                     <source>1.7</source>
                     <target>1.7</target>
+		            <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
         </plugins>
@@ -121,10 +122,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
-            <version>6.1.1</version>
-            <scope>test</scope>
+            <groupId>atom</groupId>
+            <artifactId>atom</artifactId>
+            <version>1.0</version>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
@@ -132,13 +132,5 @@
             <version>6.4</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>atom</groupId>
-            <artifactId>atom</artifactId>
-            <version>1.0</version>
-        </dependency>
-
-
     </dependencies>
-
 </project>

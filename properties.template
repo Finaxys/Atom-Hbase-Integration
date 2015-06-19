@@ -1,9 +1,9 @@
-simul.day.startDay=10
+simul.day.startDay=1
 simul.days=1
 simul.replay=false
 simul.replay.source=./outputAtom.out
 simul.tick.opening=1
-simul.tick.continuous=1250
+simul.tick.continuous=2
 simul.tick.closing=0
 simul.output.file=false
 simul.output.file.path=outputAtom.out
