@@ -1,8 +1,8 @@
 #! /bin/bash
 
 # Atom run server
-cd /public/atom/atom/
-runningJar=$(ls Atom-Hbase-Integration-*.jar)
+cd /public/atom/atom/1.0/
+runningJar=$(ls atom-*.jar)
 
 echo " -- launching Atom CLIENT (NGINX) : nginx"
 nginx
