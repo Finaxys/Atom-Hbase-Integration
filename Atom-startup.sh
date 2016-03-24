@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # Atom run server
-cd /public/atom/atom/1.0/
+cd /public/atom/atom/1.0
 runningJar=$(ls atom-*.jar)
 
 echo " -- launching Atom CLIENT (NGINX) : nginx"
