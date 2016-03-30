@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.Atom.HBase.Integration</groupId>
+    <groupId>org.Atom.HBase</groupId>
     <artifactId>Atom-HBase-Integration</artifactId>
     <name>Atom HBase</name>
     <description>Atom HBase Services</description>
