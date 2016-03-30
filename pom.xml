@@ -6,7 +6,7 @@
 
     <groupId>Atom-HBase-Integration</groupId>
     <artifactId>Atom-HBase-Integration</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>AHI-${env.PIPELINE_VERSION}</version>
 
     <build>
          <finalName>${project.artifactId}</finalName>
