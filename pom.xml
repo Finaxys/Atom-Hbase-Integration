@@ -6,10 +6,12 @@
 
     <groupId>org.Atom.HBase.Integration</groupId>
     <artifactId>Atom-HBase-Integration</artifactId>
+    <name>Atom HBase</name>
+    <description>Atom HBase Services</description>
     <version>AHI-${env.PIPELINE_VERSION}</version>
 
     <build>
-         <finalName>${project.artifactId}</finalName>
+        <finalName>${project.artifactId}</finalName>
         <plugins>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
